@@ -8,5 +8,21 @@ Bundle-SymbolicName: org.xtext.dungeondsl; singleton:=true
 Bundle-ActivationPolicy: lazy
 Require-Bundle: org.eclipse.xtext,
  org.eclipse.xtext.xbase,
- org.eclipse.equinox.common;bundle-version="3.16.0"
+ org.eclipse.equinox.common;bundle-version="3.16.0",
+ org.eclipse.emf.ecore,
+ org.eclipse.xtext.xbase.lib;bundle-version="2.37.0",
+ org.eclipse.emf.common,
+ org.antlr.runtime;bundle-version="[3.2.0,3.2.1)"
 Bundle-RequiredExecutionEnvironment: JavaSE-17
+Export-Package: org.xtext.dungeonDSL,
+ org.xtext.dungeonDSL.util,
+ org.xtext.parser.antlr.internal,
+ org.xtext.generator,
+ org.xtext.validation,
+ org.xtext.serializer,
+ org.xtext.parser.antlr,
+ org.xtext.services,
+ org.xtext.dungeonDSL.impl,
+ org.xtext.scoping,
+ org.xtext
+Import-Package: org.apache.log4j
