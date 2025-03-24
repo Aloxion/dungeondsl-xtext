@@ -8,6 +8,10 @@ import org.eclipse.xtext.generator.AbstractGenerator
 import org.eclipse.xtext.generator.IFileSystemAccess2
 import org.eclipse.xtext.generator.IGeneratorContext
 
+import org.xtext.dungeonDSL.Dungeon;
+import org.xtext.dungeonDSL.Floor;
+import org.xtext.dungeonDSL.Room;
+import org.xtext.dungeonDSL.Trap;
 /**
  * Generates code from your model files on save.
  * 
@@ -16,10 +20,79 @@ import org.eclipse.xtext.generator.IGeneratorContext
 class DungeonDSLGenerator extends AbstractGenerator {
 
 	override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorContext context) {
-//		fsa.generateFile('greetings.txt', 'People to greet: ' + 
-//			resource.allContents
-//				.filter(Greeting)
-//				.map[name]
-//				.join(', '))
-	}
+        
+        val dungeon = resource.allContents.toIterable.filter(Dungeon).head
+        
+        
+        if (dungeon !== null) {
+            // Generate JSON file with same name as the dungeon
+            val fileName = dungeon.name + ".json"
+            fsa.generateFile(fileName, generateDungeonJson(dungeon))
+        }
+        
+    }
+    
+	def generateDungeonJson(Dungeon dungeon) '''
+        {
+          "dungeon": {
+            "name": "«escape(dungeon.name)»",
+            "theme": "«escape(dungeon.theme)»",
+            "level": «dungeon.lvl»,
+            "floors": [
+              «FOR floor : dungeon.floors SEPARATOR ','»
+                «generateFloorJson(floor)»
+              «ENDFOR»
+            ]
+          }
+        }
+ 	'''
+    
+    def generateFloorJson(Floor floor) '''
+        {
+          "name": "«escape(floor.name)»",
+          "rooms": [
+            «FOR room : floor.rooms SEPARATOR ','»
+              «generateRoomJson(room)»
+            «ENDFOR»
+          ]
+        }
+    '''
+    
+    def generateRoomJson(Room room) '''
+        {
+          "name": "«escape(room.name)»",
+          "size": "«room.size»",
+          "type": "«room.type»",
+          "floorID": "«escape(room.floor)»",
+          "connections": [«FOR connection : room.connections SEPARATOR ', '»"«escape(connection)»"«ENDFOR»],
+          "traps": [
+            «FOR trap : room.traps SEPARATOR ','»
+              «generateTrapJson(trap)»
+            «ENDFOR»
+          ]
+        }
+    '''
+    
+    def generateTrapJson(Trap trap) '''
+        {
+          "name": "«escape(trap.name)»",
+          "trigger": "«trap.trigger»",
+          "disarmable": «trap.disarmable»,
+          "triggerChance": «trap.triggerChance»
+        }
+    '''
+    
+    // Helper method to escape JSON strings
+    def escape(String s) {
+        if (s === null) {
+            return ""
+        }
+        
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t")
+    }
+     
 }
