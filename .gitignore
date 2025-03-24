@@ -1,3 +1,7 @@
-/.metadata/
-**/src-gen/
-**/xtend-gen/
+/.metadata/*
+
+/src-gen/*
+!/src-gen/
+
+/xtend-gen/*
+!/xtend-gen/
