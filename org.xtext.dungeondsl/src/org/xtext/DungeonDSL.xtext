@@ -18,7 +18,6 @@ Room:
 	'Room' name=ID '{'
 		'size' '=' size=Sizes
 		'type' '=' type=RoomTypes
-		'floorID' '=' floor=ID
 		'connections' "=" '[' connections+=ID (',' connections+=ID)* ']'
 		(traps+=Trap)*
 	'}'
@@ -30,6 +29,39 @@ Trap:
         'disarmable' '=' disarmable=BOOLEAN
         'triggerChance' '=' triggerChance=INT
     '}';
+
+NPC:
+    'NPC' name=ID '{'
+        'behaviour' '=' behaviour=Behaviour
+        'type' '=' type=NPCType
+        'health' '=' baseHealth=Expression // Now health is an Expression
+    '}';
+    
+Expression returns Expression:
+    Addition; // Entry point: lowest precedence
+
+Addition returns Expression:
+    Multiplication ({BinaryOperation.left=current} operator=('+'|'-') right=Multiplication)*;
+    // Parses Multiplication, then handles '+' or '-' left-associatively using Action
+
+Multiplication returns Expression:
+    PrimaryExpression ({BinaryOperation.left=current} operator=('*'|'/') right=PrimaryExpression)*;
+    // Parses Primary, then handles '*' or '/' left-associatively using Action
+
+PrimaryExpression returns Expression:
+    '(' Expression ')'                // Parentheses for grouping
+    | {NumberLiteral} value=INT       // An integer number is the base case
+;
+
+enum Behaviour:
+	AGGRESSIVE | NEUTRAL
+;
+
+
+enum NPCType:
+	MERCHANT | ENEMY | NORMAL
+;
+
 
 enum BOOLEAN:
 	true | false

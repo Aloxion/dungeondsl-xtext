@@ -26,61 +26,127 @@ class DungeonDSLGenerator extends AbstractGenerator {
         
         if (dungeon !== null) {
             // Generate JSON file with same name as the dungeon
-            val fileName = dungeon.name + ".json"
-            fsa.generateFile(fileName, generateDungeonJson(dungeon))
+            val fileName = dungeon.name + ".py"
+            fsa.generateFile(fileName, generateDungeon(dungeon))
         }
         
     }
     
-	def generateDungeonJson(Dungeon dungeon) '''
-        {
-          "dungeon": {
-            "name": "«escape(dungeon.name)»",
-            "theme": "«escape(dungeon.theme)»",
-            "level": «dungeon.lvl»,
-            "floors": [
-              «FOR floor : dungeon.floors SEPARATOR ','»
-                «generateFloorJson(floor)»
-              «ENDFOR»
-            ]
-          }
-        }
- 	'''
+	def generateDungeon(Dungeon dungeon) '''
+#!usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Generated Dungeon: «escape(dungeon.name)»
+Theme: «escape(dungeon.theme)»
+"""	 
+
+from enum import Enum
+from typing import List, Optional
+
+
+class Sizes(Enum):
+    LARGE = "LARGE"
+    MEDIUM = "MEDIUM"
+    SMALL = "SMALL"
+
+
+class RoomTypes(Enum):
+    COMBAT = "COMBAT"
+    TREASURE = "TREASURE"
+    BOSS = "BOSS"
+    PUZZLE = "PUZZLE"
+    SHOP = "SHOP"
+
+
+class EventTrigger(Enum):
+    STEP_ON = "stepOn"
+    OPEN_DOOR = "openDoor"
+
+
+class Behaviour(Enum):
+    AGGRESSIVE = "AGGRESSIVE"
+    NEUTRAL = "NEUTRAL"
+
+
+class NPCType(Enum):
+    MERCHANT = "MERCHANT"
+    ENEMY = "ENEMY"
+    NORMAL = "NORMAL"
+
+
+class Dungeon:
+    def __init__(self, name: str, theme: str, lvl: int):
+        self.name = name
+        self.theme = theme
+        self.lvl = lvl
+        self.floors: List[Dungeon.Floor] = []
+
+    def add_floor(self, floor):
+        self.floors.append(floor)
+
+    class Floor:
+        def __init__(self, name: str):
+            self.name = name
+            self.rooms: List[Dungeon.Room] = []
+
+        def add_room(self, room):
+            self.rooms.append(room)
+
+    class Room:
+        def __init__(self, name: str, size: Sizes, room_type: RoomTypes, floor_id: str, connections: List[str]):
+            self.name = name
+            self.size = size
+            self.room_type = room_type
+            self.floor_id = floor_id
+            self.connections = connections
+            self.traps: List[Dungeon.Trap] = []
+
+        def add_trap(self, trap):
+            self.traps.append(trap)
+
+    class Trap:
+        def __init__(self, name: str, trigger: EventTrigger, disarmable: bool, trigger_chance: int):
+            self.name = name
+            self.trigger = trigger
+            self.disarmable = disarmable
+            self.trigger_chance = trigger_chance
+
+    class NPC:
+        def __init__(self, name: str, behaviour: Behaviour, npc_type: NPCType, health: int):
+            self.name = name
+            self.behaviour = behaviour
+            self.npc_type = npc_type
+            self.health = health
+     
+dung = Dungeon("«escape(dungeon.name)»", "«escape(dungeon.theme)»", «dungeon.lvl»)
+
+«FOR floor : dungeon.floors SEPARATOR ','»
+
+«floor.name» = Dungeon.Floor("«floor.name»")
+	«FOR room : floor.rooms SEPARATOR ','»
+
+«room.name» = Dungeon.Room(
+     name="«room.name»",
+     size=Sizes.«room.size»,
+     room_type=RoomTypes.«room.type»,
+     floor_id=«floor.name»,
+     connections=«room.connections»
+)
+«floor.name».add_room(«room.name»)
+    «ENDFOR»
+«ENDFOR»
+'''
     
-    def generateFloorJson(Floor floor) '''
-        {
-          "name": "«escape(floor.name)»",
-          "rooms": [
-            «FOR room : floor.rooms SEPARATOR ','»
-              «generateRoomJson(room)»
-            «ENDFOR»
-          ]
-        }
-    '''
-    
-    def generateRoomJson(Room room) '''
-        {
-          "name": "«escape(room.name)»",
-          "size": "«room.size»",
-          "type": "«room.type»",
-          "floorID": "«escape(room.floor)»",
-          "connections": [«FOR connection : room.connections SEPARATOR ', '»"«escape(connection)»"«ENDFOR»],
-          "traps": [
-            «FOR trap : room.traps SEPARATOR ','»
-              «generateTrapJson(trap)»
-            «ENDFOR»
-          ]
-        }
-    '''
-    
-    def generateTrapJson(Trap trap) '''
-        {
-          "name": "«escape(trap.name)»",
-          "trigger": "«trap.trigger»",
-          "disarmable": «trap.disarmable»,
-          "triggerChance": «trap.triggerChance»
-        }
-    '''
+//    
+//    def generateTrapJson(Trap trap) '''
+//        {
+//          "name": "«escape(trap.name)»",
+//          "trigger": "«trap.trigger»",
+//          "disarmable": «trap.disarmable»,
+//          "triggerChance": «trap.triggerChance»
+//        }
+//    '''
     
     // Helper method to escape JSON strings
     def escape(String s) {

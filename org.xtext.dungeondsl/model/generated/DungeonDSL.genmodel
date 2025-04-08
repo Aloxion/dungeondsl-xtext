@@ -6,6 +6,15 @@
     complianceLevel="11.0" copyrightFields="false" runtimeVersion="2.29">
   <genPackages prefix="DungeonDSL" basePackage="org.xtext" disposableProviderFactory="true"
       fileExtensions="dung" ecorePackage="DungeonDSL.ecore#/">
+    <genEnums typeSafeEnumCompatible="false" ecoreEnum="DungeonDSL.ecore#//Behaviour">
+      <genEnumLiterals ecoreEnumLiteral="DungeonDSL.ecore#//Behaviour/AGGRESSIVE"/>
+      <genEnumLiterals ecoreEnumLiteral="DungeonDSL.ecore#//Behaviour/NEUTRAL"/>
+    </genEnums>
+    <genEnums typeSafeEnumCompatible="false" ecoreEnum="DungeonDSL.ecore#//NPCType">
+      <genEnumLiterals ecoreEnumLiteral="DungeonDSL.ecore#//NPCType/MERCHANT"/>
+      <genEnumLiterals ecoreEnumLiteral="DungeonDSL.ecore#//NPCType/ENEMY"/>
+      <genEnumLiterals ecoreEnumLiteral="DungeonDSL.ecore#//NPCType/NORMAL"/>
+    </genEnums>
     <genEnums typeSafeEnumCompatible="false" ecoreEnum="DungeonDSL.ecore#//BOOLEAN">
       <genEnumLiterals ecoreEnumLiteral="DungeonDSL.ecore#//BOOLEAN/true"/>
       <genEnumLiterals ecoreEnumLiteral="DungeonDSL.ecore#//BOOLEAN/false"/>
@@ -40,7 +49,6 @@
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute DungeonDSL.ecore#//Room/name"/>
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute DungeonDSL.ecore#//Room/size"/>
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute DungeonDSL.ecore#//Room/type"/>
-      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute DungeonDSL.ecore#//Room/floor"/>
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute DungeonDSL.ecore#//Room/connections"/>
       <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference DungeonDSL.ecore#//Room/traps"/>
     </genClasses>
@@ -49,6 +57,21 @@
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute DungeonDSL.ecore#//Trap/trigger"/>
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute DungeonDSL.ecore#//Trap/disarmable"/>
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute DungeonDSL.ecore#//Trap/triggerChance"/>
+    </genClasses>
+    <genClasses ecoreClass="DungeonDSL.ecore#//NPC">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute DungeonDSL.ecore#//NPC/name"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute DungeonDSL.ecore#//NPC/behaviour"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute DungeonDSL.ecore#//NPC/type"/>
+      <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference DungeonDSL.ecore#//NPC/baseHealth"/>
+    </genClasses>
+    <genClasses ecoreClass="DungeonDSL.ecore#//Expression"/>
+    <genClasses ecoreClass="DungeonDSL.ecore#//BinaryOperation">
+      <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference DungeonDSL.ecore#//BinaryOperation/left"/>
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute DungeonDSL.ecore#//BinaryOperation/operator"/>
+      <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference DungeonDSL.ecore#//BinaryOperation/right"/>
+    </genClasses>
+    <genClasses ecoreClass="DungeonDSL.ecore#//NumberLiteral">
+      <genFeatures createChild="false" ecoreFeature="ecore:EAttribute DungeonDSL.ecore#//NumberLiteral/value"/>
     </genClasses>
   </genPackages>
 </genmodel:GenModel>

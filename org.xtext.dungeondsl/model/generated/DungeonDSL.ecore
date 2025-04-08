@@ -17,7 +17,6 @@
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="size" eType="#//Sizes"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="type" eType="#//RoomTypes"/>
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="floor" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="connections" unique="false"
         upperBound="-1" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
     <eStructuralFeatures xsi:type="ecore:EReference" name="traps" upperBound="-1"
@@ -28,6 +27,23 @@
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="trigger" eType="#//EventTrigger"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="disarmable" eType="#//BOOLEAN"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="triggerChance" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="NPC">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="behaviour" eType="#//Behaviour"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="type" eType="#//NPCType"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="baseHealth" eType="#//Expression"
+        containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Expression"/>
+  <eClassifiers xsi:type="ecore:EEnum" name="Behaviour">
+    <eLiterals name="AGGRESSIVE" literal="AGGRESSIVE"/>
+    <eLiterals name="NEUTRAL" value="1" literal="NEUTRAL"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="NPCType">
+    <eLiterals name="MERCHANT" literal="MERCHANT"/>
+    <eLiterals name="ENEMY" value="1" literal="ENEMY"/>
+    <eLiterals name="NORMAL" value="2" literal="NORMAL"/>
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EEnum" name="BOOLEAN">
     <eLiterals name="true" literal="true"/>
@@ -48,5 +64,15 @@
   <eClassifiers xsi:type="ecore:EEnum" name="EventTrigger">
     <eLiterals name="stepOn" literal="stepOn"/>
     <eLiterals name="openDoor" value="1" literal="openDoor"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="BinaryOperation" eSuperTypes="#//Expression">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="left" eType="#//Expression"
+        containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="operator" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="right" eType="#//Expression"
+        containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="NumberLiteral" eSuperTypes="#//Expression">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="value" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
   </eClassifiers>
 </ecore:EPackage>
