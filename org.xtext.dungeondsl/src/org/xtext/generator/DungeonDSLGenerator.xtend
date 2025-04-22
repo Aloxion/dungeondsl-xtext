@@ -33,16 +33,17 @@ class DungeonDSLGenerator extends AbstractGenerator {
     }
     
 	def generateDungeon(Dungeon dungeon) '''
-#!usr/bin/env python3
+# usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
 Generated Dungeon: «escape(dungeon.name)»
 Theme: «escape(dungeon.theme)»
 """	 
-
+import pygame
 from enum import Enum
 from typing import List, Optional
+import random
 
 
 class Sizes(Enum):
@@ -93,51 +94,290 @@ class Dungeon:
         def add_room(self, room):
             self.rooms.append(room)
 
+        def get_room_by_name(self, name: str) -> Optional["Dungeon.Room"]:
+            for room in self.rooms:
+                if room.name == name:
+                    return room
+            return None
+
     class Room:
-        def __init__(self, name: str, size: Sizes, room_type: RoomTypes, floor_id: str, connections: List[str]):
+        def __init__(
+            self,
+            name: str,
+            size: Sizes,
+            room_type: RoomTypes,
+            floor_id: str,
+        ):
             self.name = name
             self.size = size
             self.room_type = room_type
             self.floor_id = floor_id
-            self.connections = connections
+            self.connections = []
             self.traps: List[Dungeon.Trap] = []
 
         def add_trap(self, trap):
             self.traps.append(trap)
 
+        def set_connections(self, connections):
+            self.connections = connections
+
     class Trap:
-        def __init__(self, name: str, trigger: EventTrigger, disarmable: bool, trigger_chance: int):
+        def __init__(
+            self,
+            name: str,
+            trigger: EventTrigger,
+            disarmable: bool,
+            trigger_chance: int,
+        ):
             self.name = name
             self.trigger = trigger
             self.disarmable = disarmable
             self.trigger_chance = trigger_chance
 
     class NPC:
-        def __init__(self, name: str, behaviour: Behaviour, npc_type: NPCType, health: int):
+        def __init__(
+            self, name: str, behaviour: Behaviour, npc_type: NPCType, health: int
+        ):
             self.name = name
             self.behaviour = behaviour
             self.npc_type = npc_type
             self.health = health
-     
+
 dung = Dungeon("«escape(dungeon.name)»", "«escape(dungeon.theme)»", «dungeon.lvl»)
 
-«FOR floor : dungeon.floors SEPARATOR ','»
-
+«FOR floor : dungeon.floors»
 «floor.name» = Dungeon.Floor("«floor.name»")
-	«FOR room : floor.rooms SEPARATOR ','»
+Floor1 = «floor.name»
+	«FOR room : floor.rooms»
 
 «room.name» = Dungeon.Room(
-     name="«room.name»",
-     size=Sizes.«room.size»,
-     room_type=RoomTypes.«room.type»,
-     floor_id=«floor.name»,
-     connections=«room.connections»
-)
+	     name="«room.name»",
+	     size=Sizes.«room.size»,
+	     room_type=RoomTypes.«room.type»,
+	     floor_id=«floor.name»,
+	)
+    «ENDFOR»
+    «FOR room : floor.rooms»
 «floor.name».add_room(«room.name»)
+«room.name».set_connections(«room.connections»)
     «ENDFOR»
 «ENDFOR»
+# Pygame visualization
+pygame.init()
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (34, 34, 34)
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+GREEN = (0, 255, 0)
+CUSTOM = (190, 222, 252)
+# Screen dimensions
+WIDTH, HEIGHT = 1920, 1020
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Dungeon Visualization")
+
+biggestWidth = max(len(room.name) for room in Floor1.rooms) * 7.5
+
+
+def sort_rooms_by_connections(rooms):
+    room_tree = {}
+    roomsHandled = []
+    sorted_rooms = sorted(rooms, key=lambda x: len(x.connections), reverse=True)
+
+    for firstRoom in sorted_rooms:
+        if firstRoom.name not in room_tree and firstRoom.name not in roomsHandled:
+            room_tree[firstRoom.name] = firstRoom.connections
+            roomsHandled.append(firstRoom.name)
+            for connectedRoom in firstRoom.connections:
+                roomsHandled.append(connectedRoom.name)
+            continue
+
+    return room_tree
+
+
+def generate_room_positions(rooms):
+    room_positions = {}
+    center_x = WIDTH // 2
+    center_y = HEIGHT // 2
+    x_increment = biggestWidth * 1.2
+    y_increment = biggestWidth * 1.2
+
+    # Create a grid
+    grid_width = WIDTH // int(x_increment) + 1
+    grid_height = HEIGHT // int(y_increment) + 1
+    grid = [[0 for _ in range(grid_height)] for _ in range(grid_width)]
+
+    def get_grid_coords(x, y):
+        grid_x = int(x // x_increment)
+        grid_y = int(y // y_increment)
+        return grid_x, grid_y
+
+    def is_grid_available(x, y):
+        grid_x, grid_y = get_grid_coords(x, y)
+        if 0 <= grid_x < grid_width and 0 <= grid_y < grid_height:
+            return grid[grid_x][grid_y] == 0
+        return False
+
+    def mark_grid_used(x, y):
+        grid_x, grid_y = get_grid_coords(x, y)
+        if 0 <= grid_x < grid_width and 0 <= grid_y < grid_height:
+            grid[grid_x][grid_y] = 1
+
+    first_room = rooms[0]
+    room_positions[first_room.name] = (center_x, center_y)
+    mark_grid_used(center_x, center_y)
+
+    rooms_to_place = [(first_room, center_x, center_y)]
+    placed_rooms = {first_room.name}
+
+    while rooms_to_place:
+        current_room, current_x, current_y = rooms_to_place.pop(0)
+        connections = current_room.connections
+
+        directions = {
+            "top": (0, -y_increment),
+            "bottom": (0, y_increment),
+            "left": (-x_increment, 0),
+            "right": (x_increment, 0),
+        }
+        opposite_directions = {
+            "top": "bottom",
+            "bottom": "top",
+            "left": "right",
+            "right": "left",
+        }
+
+        available_directions = list(directions.keys())
+        random.shuffle(available_directions)
+
+        for connected_room in connections:
+            if connected_room.name not in placed_rooms:
+                chosen_direction = None
+                for direction_name in available_directions:
+                    dx, dy = directions[direction_name]
+                    new_x, new_y = current_x + dx, current_y + dy
+                    if is_grid_available(new_x, new_y):
+                        chosen_direction = direction_name
+                        break
+
+                if chosen_direction is None:
+                    for direction_name in available_directions:
+                        dx, dy = directions[direction_name]
+                        new_x, new_y = current_x + dx, current_y + dy
+                        if (
+                            is_grid_available(new_x, new_y)
+                            and opposite_directions[direction_name]
+                        ):
+                            chosen_direction = direction_name
+                            break
+
+                if chosen_direction is None:
+                    print(
+                        f"Could not find a valid position for {connected_room.name}, skipping."
+                    )
+                    continue
+
+                dx, dy = directions[chosen_direction]
+                new_x, new_y = current_x + dx, current_y + dy
+                room_positions[connected_room.name] = (new_x, new_y)
+                mark_grid_used(new_x, new_y)
+                rooms_to_place.append((connected_room, new_x, new_y))
+                placed_rooms.add(connected_room.name)
+                available_directions.remove(chosen_direction)
+
+    return room_positions
+
+
+# Room positions
+room_positions = generate_room_positions(Floor1.rooms)
+
+# New variables for current room and room rectangles
+current_room = Floor1.rooms[0].name  # Start with the first room
+room_rects = {}
+for room_name, position in room_positions.items():
+    width = biggestWidth
+    size = biggestWidth
+    room_rects[room_name] = pygame.Rect(
+        position[0] - width // 2, position[1] - size // 2, width, size
+    )
+
+running = True
+rooms_visited = set()
+# Mark the first room as visited by default
+rooms_visited.add(Floor1.rooms[0].name)
+undiscovered_rooms = set()
+# Add connected rooms to the visited set
+for connected_room in Floor1.rooms[0].connections:
+    undiscovered_rooms.add(connected_room.name)
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 1:  # Left mouse button
+                for room_name, rect in room_rects.items():
+                    if rect.collidepoint(event.pos):
+                        current_room = room_name
+                        room = Floor1.get_room_by_name(current_room)
+                        if current_room not in rooms_visited:
+                            rooms_visited.add(current_room)
+                            # Add connected rooms to the visited set
+
+                        for connected_room in room.connections:
+                            if connected_room.name not in rooms_visited:
+                                undiscovered_rooms.add(connected_room.name)
+
+                        break
+
+    # Clear screen
+    screen.fill(color=BLACK)
+
+    # Draw connections
+
+    for room in Floor1.rooms:
+        if room.name == current_room or room.name in rooms_visited:
+            for connected_room in room.connections:
+                pygame.draw.line(
+                    screen,
+                    CUSTOM,
+                    room_positions[room.name],
+                    room_positions[connected_room.name],
+                    2,
+                )
+
+    # Draw rooms
+    for room_name, position in room_positions.items():
+
+        if room_name not in undiscovered_rooms and room_name not in rooms_visited:
+            continue
+
+        if room_name in rooms_visited:
+            color = RED if room_name == "Boss" else CUSTOM
+        else:
+            color = WHITE
+        if room_name == current_room:
+            color = RED if room_name == "Boss" else GREEN
+        width = biggestWidth
+        size = biggestWidth
+        pygame.draw.rect(
+            screen,
+            color,
+            (position[0] - width // 2, position[1] - size // 2, width, size),
+            border_radius=10,
+        )
+        font = pygame.font.Font(None, 16)
+        if room_name in rooms_visited:
+            text = font.render(room_name, True, BLACK)
+        else:
+            text = font.render("?", True, BLACK)  # Show "?" if not visited
+        text_rect = text.get_rect(center=position)
+        screen.blit(text, text_rect)
+
+    # Update display
+    pygame.display.flip()
+
+pygame.quit()
 '''
-    
 //    
 //    def generateTrapJson(Trap trap) '''
 //        {
