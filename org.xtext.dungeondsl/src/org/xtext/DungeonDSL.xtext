@@ -20,6 +20,7 @@ Room:
 		'type' '=' type=RoomTypes
 		'connections' "=" '[' connections+=ID (',' connections+=ID)* ']'
 		(traps+=Trap)*
+		(npcs+=NPC)*
 	'}'
 ;
 

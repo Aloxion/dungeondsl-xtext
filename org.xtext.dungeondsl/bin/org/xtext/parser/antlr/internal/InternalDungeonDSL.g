@@ -422,9 +422,28 @@ ruleRoom returns [EObject current=null]
 				}
 			)
 		)*
-		otherlv_17='}'
+		(
+			(
+				{
+					newCompositeNode(grammarAccess.getRoomAccess().getNpcsNPCParserRuleCall_16_0());
+				}
+				lv_npcs_17_0=ruleNPC
+				{
+					if ($current==null) {
+						$current = createModelElementForParent(grammarAccess.getRoomRule());
+					}
+					add(
+						$current,
+						"npcs",
+						lv_npcs_17_0,
+						"org.xtext.DungeonDSL.NPC");
+					afterParserOrEnumRuleCall();
+				}
+			)
+		)*
+		otherlv_18='}'
 		{
-			newLeafNode(otherlv_17, grammarAccess.getRoomAccess().getRightCurlyBracketKeyword_16());
+			newLeafNode(otherlv_18, grammarAccess.getRoomAccess().getRightCurlyBracketKeyword_17());
 		}
 	)
 ;
@@ -554,6 +573,136 @@ ruleTrap returns [EObject current=null]
 		otherlv_12='}'
 		{
 			newLeafNode(otherlv_12, grammarAccess.getTrapAccess().getRightCurlyBracketKeyword_12());
+		}
+	)
+;
+
+// Entry rule entryRuleNPC
+entryRuleNPC returns [EObject current=null]:
+	{ newCompositeNode(grammarAccess.getNPCRule()); }
+	iv_ruleNPC=ruleNPC
+	{ $current=$iv_ruleNPC.current; }
+	EOF;
+
+// Rule NPC
+ruleNPC returns [EObject current=null]
+@init {
+	enterRule();
+}
+@after {
+	leaveRule();
+}:
+	(
+		otherlv_0='NPC'
+		{
+			newLeafNode(otherlv_0, grammarAccess.getNPCAccess().getNPCKeyword_0());
+		}
+		(
+			(
+				lv_name_1_0=RULE_ID
+				{
+					newLeafNode(lv_name_1_0, grammarAccess.getNPCAccess().getNameIDTerminalRuleCall_1_0());
+				}
+				{
+					if ($current==null) {
+						$current = createModelElement(grammarAccess.getNPCRule());
+					}
+					setWithLastConsumed(
+						$current,
+						"name",
+						lv_name_1_0,
+						"org.eclipse.xtext.common.Terminals.ID");
+				}
+			)
+		)
+		otherlv_2='{'
+		{
+			newLeafNode(otherlv_2, grammarAccess.getNPCAccess().getLeftCurlyBracketKeyword_2());
+		}
+		otherlv_3='behaviour'
+		{
+			newLeafNode(otherlv_3, grammarAccess.getNPCAccess().getBehaviourKeyword_3());
+		}
+		otherlv_4='='
+		{
+			newLeafNode(otherlv_4, grammarAccess.getNPCAccess().getEqualsSignKeyword_4());
+		}
+		(
+			(
+				{
+					newCompositeNode(grammarAccess.getNPCAccess().getBehaviourBehaviourEnumRuleCall_5_0());
+				}
+				lv_behaviour_5_0=ruleBehaviour
+				{
+					if ($current==null) {
+						$current = createModelElementForParent(grammarAccess.getNPCRule());
+					}
+					set(
+						$current,
+						"behaviour",
+						lv_behaviour_5_0,
+						"org.xtext.DungeonDSL.Behaviour");
+					afterParserOrEnumRuleCall();
+				}
+			)
+		)
+		otherlv_6='type'
+		{
+			newLeafNode(otherlv_6, grammarAccess.getNPCAccess().getTypeKeyword_6());
+		}
+		otherlv_7='='
+		{
+			newLeafNode(otherlv_7, grammarAccess.getNPCAccess().getEqualsSignKeyword_7());
+		}
+		(
+			(
+				{
+					newCompositeNode(grammarAccess.getNPCAccess().getTypeNPCTypeEnumRuleCall_8_0());
+				}
+				lv_type_8_0=ruleNPCType
+				{
+					if ($current==null) {
+						$current = createModelElementForParent(grammarAccess.getNPCRule());
+					}
+					set(
+						$current,
+						"type",
+						lv_type_8_0,
+						"org.xtext.DungeonDSL.NPCType");
+					afterParserOrEnumRuleCall();
+				}
+			)
+		)
+		otherlv_9='health'
+		{
+			newLeafNode(otherlv_9, grammarAccess.getNPCAccess().getHealthKeyword_9());
+		}
+		otherlv_10='='
+		{
+			newLeafNode(otherlv_10, grammarAccess.getNPCAccess().getEqualsSignKeyword_10());
+		}
+		(
+			(
+				{
+					newCompositeNode(grammarAccess.getNPCAccess().getBaseHealthExpressionParserRuleCall_11_0());
+				}
+				lv_baseHealth_11_0=ruleExpression
+				{
+					if ($current==null) {
+						$current = createModelElementForParent(grammarAccess.getNPCRule());
+					}
+					set(
+						$current,
+						"baseHealth",
+						lv_baseHealth_11_0,
+						"org.xtext.DungeonDSL.Expression");
+					afterParserOrEnumRuleCall();
+				}
+			)
+		)
+		otherlv_12='}'
+		{
+			newLeafNode(otherlv_12, grammarAccess.getNPCAccess().getRightCurlyBracketKeyword_12());
 		}
 	)
 ;

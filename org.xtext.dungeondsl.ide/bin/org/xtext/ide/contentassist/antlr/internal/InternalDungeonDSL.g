@@ -149,6 +149,31 @@ finally {
 	restoreStackSize(stackSize);
 }
 
+// Entry rule entryRuleNPC
+entryRuleNPC
+:
+{ before(grammarAccess.getNPCRule()); }
+	 ruleNPC
+{ after(grammarAccess.getNPCRule()); } 
+	 EOF 
+;
+
+// Rule NPC
+ruleNPC 
+	@init {
+		int stackSize = keepStackSize();
+	}
+	:
+	(
+		{ before(grammarAccess.getNPCAccess().getGroup()); }
+		(rule__NPC__Group__0)
+		{ after(grammarAccess.getNPCAccess().getGroup()); }
+	)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
 // Entry rule entryRuleExpression
 entryRuleExpression
 :
@@ -1434,6 +1459,7 @@ rule__Room__Group__16
 	}
 :
 	rule__Room__Group__16__Impl
+	rule__Room__Group__17
 ;
 finally {
 	restoreStackSize(stackSize);
@@ -1445,9 +1471,35 @@ rule__Room__Group__16__Impl
 	}
 :
 (
-	{ before(grammarAccess.getRoomAccess().getRightCurlyBracketKeyword_16()); }
+	{ before(grammarAccess.getRoomAccess().getNpcsAssignment_16()); }
+	(rule__Room__NpcsAssignment_16)*
+	{ after(grammarAccess.getRoomAccess().getNpcsAssignment_16()); }
+)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__Room__Group__17
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	rule__Room__Group__17__Impl
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__Room__Group__17__Impl
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+(
+	{ before(grammarAccess.getRoomAccess().getRightCurlyBracketKeyword_17()); }
 	'}'
-	{ after(grammarAccess.getRoomAccess().getRightCurlyBracketKeyword_16()); }
+	{ after(grammarAccess.getRoomAccess().getRightCurlyBracketKeyword_17()); }
 )
 ;
 finally {
@@ -1853,6 +1905,357 @@ rule__Trap__Group__12__Impl
 	{ before(grammarAccess.getTrapAccess().getRightCurlyBracketKeyword_12()); }
 	'}'
 	{ after(grammarAccess.getTrapAccess().getRightCurlyBracketKeyword_12()); }
+)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+
+rule__NPC__Group__0
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	rule__NPC__Group__0__Impl
+	rule__NPC__Group__1
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__0__Impl
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+(
+	{ before(grammarAccess.getNPCAccess().getNPCKeyword_0()); }
+	'NPC'
+	{ after(grammarAccess.getNPCAccess().getNPCKeyword_0()); }
+)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__1
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	rule__NPC__Group__1__Impl
+	rule__NPC__Group__2
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__1__Impl
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+(
+	{ before(grammarAccess.getNPCAccess().getNameAssignment_1()); }
+	(rule__NPC__NameAssignment_1)
+	{ after(grammarAccess.getNPCAccess().getNameAssignment_1()); }
+)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__2
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	rule__NPC__Group__2__Impl
+	rule__NPC__Group__3
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__2__Impl
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+(
+	{ before(grammarAccess.getNPCAccess().getLeftCurlyBracketKeyword_2()); }
+	'{'
+	{ after(grammarAccess.getNPCAccess().getLeftCurlyBracketKeyword_2()); }
+)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__3
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	rule__NPC__Group__3__Impl
+	rule__NPC__Group__4
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__3__Impl
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+(
+	{ before(grammarAccess.getNPCAccess().getBehaviourKeyword_3()); }
+	'behaviour'
+	{ after(grammarAccess.getNPCAccess().getBehaviourKeyword_3()); }
+)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__4
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	rule__NPC__Group__4__Impl
+	rule__NPC__Group__5
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__4__Impl
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+(
+	{ before(grammarAccess.getNPCAccess().getEqualsSignKeyword_4()); }
+	'='
+	{ after(grammarAccess.getNPCAccess().getEqualsSignKeyword_4()); }
+)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__5
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	rule__NPC__Group__5__Impl
+	rule__NPC__Group__6
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__5__Impl
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+(
+	{ before(grammarAccess.getNPCAccess().getBehaviourAssignment_5()); }
+	(rule__NPC__BehaviourAssignment_5)
+	{ after(grammarAccess.getNPCAccess().getBehaviourAssignment_5()); }
+)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__6
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	rule__NPC__Group__6__Impl
+	rule__NPC__Group__7
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__6__Impl
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+(
+	{ before(grammarAccess.getNPCAccess().getTypeKeyword_6()); }
+	'type'
+	{ after(grammarAccess.getNPCAccess().getTypeKeyword_6()); }
+)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__7
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	rule__NPC__Group__7__Impl
+	rule__NPC__Group__8
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__7__Impl
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+(
+	{ before(grammarAccess.getNPCAccess().getEqualsSignKeyword_7()); }
+	'='
+	{ after(grammarAccess.getNPCAccess().getEqualsSignKeyword_7()); }
+)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__8
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	rule__NPC__Group__8__Impl
+	rule__NPC__Group__9
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__8__Impl
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+(
+	{ before(grammarAccess.getNPCAccess().getTypeAssignment_8()); }
+	(rule__NPC__TypeAssignment_8)
+	{ after(grammarAccess.getNPCAccess().getTypeAssignment_8()); }
+)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__9
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	rule__NPC__Group__9__Impl
+	rule__NPC__Group__10
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__9__Impl
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+(
+	{ before(grammarAccess.getNPCAccess().getHealthKeyword_9()); }
+	'health'
+	{ after(grammarAccess.getNPCAccess().getHealthKeyword_9()); }
+)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__10
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	rule__NPC__Group__10__Impl
+	rule__NPC__Group__11
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__10__Impl
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+(
+	{ before(grammarAccess.getNPCAccess().getEqualsSignKeyword_10()); }
+	'='
+	{ after(grammarAccess.getNPCAccess().getEqualsSignKeyword_10()); }
+)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__11
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	rule__NPC__Group__11__Impl
+	rule__NPC__Group__12
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__11__Impl
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+(
+	{ before(grammarAccess.getNPCAccess().getBaseHealthAssignment_11()); }
+	(rule__NPC__BaseHealthAssignment_11)
+	{ after(grammarAccess.getNPCAccess().getBaseHealthAssignment_11()); }
+)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__12
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	rule__NPC__Group__12__Impl
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__Group__12__Impl
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+(
+	{ before(grammarAccess.getNPCAccess().getRightCurlyBracketKeyword_12()); }
+	'}'
+	{ after(grammarAccess.getNPCAccess().getRightCurlyBracketKeyword_12()); }
 )
 ;
 finally {
@@ -2445,6 +2848,21 @@ finally {
 	restoreStackSize(stackSize);
 }
 
+rule__Room__NpcsAssignment_16
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	(
+		{ before(grammarAccess.getRoomAccess().getNpcsNPCParserRuleCall_16_0()); }
+		ruleNPC
+		{ after(grammarAccess.getRoomAccess().getNpcsNPCParserRuleCall_16_0()); }
+	)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
 rule__Trap__NameAssignment_1
 	@init {
 		int stackSize = keepStackSize();
@@ -2499,6 +2917,66 @@ rule__Trap__TriggerChanceAssignment_11
 		{ before(grammarAccess.getTrapAccess().getTriggerChanceINTTerminalRuleCall_11_0()); }
 		RULE_INT
 		{ after(grammarAccess.getTrapAccess().getTriggerChanceINTTerminalRuleCall_11_0()); }
+	)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__NameAssignment_1
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	(
+		{ before(grammarAccess.getNPCAccess().getNameIDTerminalRuleCall_1_0()); }
+		RULE_ID
+		{ after(grammarAccess.getNPCAccess().getNameIDTerminalRuleCall_1_0()); }
+	)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__BehaviourAssignment_5
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	(
+		{ before(grammarAccess.getNPCAccess().getBehaviourBehaviourEnumRuleCall_5_0()); }
+		ruleBehaviour
+		{ after(grammarAccess.getNPCAccess().getBehaviourBehaviourEnumRuleCall_5_0()); }
+	)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__TypeAssignment_8
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	(
+		{ before(grammarAccess.getNPCAccess().getTypeNPCTypeEnumRuleCall_8_0()); }
+		ruleNPCType
+		{ after(grammarAccess.getNPCAccess().getTypeNPCTypeEnumRuleCall_8_0()); }
+	)
+;
+finally {
+	restoreStackSize(stackSize);
+}
+
+rule__NPC__BaseHealthAssignment_11
+	@init {
+		int stackSize = keepStackSize();
+	}
+:
+	(
+		{ before(grammarAccess.getNPCAccess().getBaseHealthExpressionParserRuleCall_11_0()); }
+		ruleExpression
+		{ after(grammarAccess.getNPCAccess().getBaseHealthExpressionParserRuleCall_11_0()); }
 	)
 ;
 finally {

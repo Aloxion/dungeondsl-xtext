@@ -51,6 +51,7 @@
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute DungeonDSL.ecore#//Room/type"/>
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute DungeonDSL.ecore#//Room/connections"/>
       <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference DungeonDSL.ecore#//Room/traps"/>
+      <genFeatures property="None" children="true" createChild="true" ecoreFeature="ecore:EReference DungeonDSL.ecore#//Room/npcs"/>
     </genClasses>
     <genClasses ecoreClass="DungeonDSL.ecore#//Trap">
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute DungeonDSL.ecore#//Trap/name"/>

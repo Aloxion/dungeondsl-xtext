@@ -12,6 +12,12 @@ import org.xtext.dungeonDSL.Dungeon;
 import org.xtext.dungeonDSL.Floor;
 import org.xtext.dungeonDSL.Room;
 import org.xtext.dungeonDSL.Trap;
+import java.lang.reflect.Array
+import java.util.ArrayList
+import org.eclipse.emf.common.util.EList;
+import org.xtext.dungeonDSL.BinaryOperation
+import org.xtext.dungeonDSL.NumberLiteral
+
 /**
  * Generates code from your model files on save.
  * 
@@ -114,12 +120,16 @@ class Dungeon:
             self.floor_id = floor_id
             self.connections = []
             self.traps: List[Dungeon.Trap] = []
+            self.npcs: List[Dungeon.NPC] = []
 
         def add_trap(self, trap):
             self.traps.append(trap)
 
         def set_connections(self, connections):
             self.connections = connections
+		
+        def add_npc(self, npc):
+            self.npcs.append(npc)
 
     class Trap:
         def __init__(
@@ -150,18 +160,38 @@ dung = Dungeon("«escape(dungeon.name)»", "«escape(dungeon.theme)»", «dungeo
 dung.add_floor(«floor.name»)
 	«FOR room : floor.rooms»
 
-«room.name» = Dungeon.Room(
+«room.name»_«floor.name» = Dungeon.Room(
 	     name="«room.name»",
 	     size=Sizes.«room.size»,
 	     room_type=RoomTypes.«room.type»,
 	     floor_id=«floor.name»,
 	)
-    «ENDFOR»
-    «FOR room : floor.rooms»
-«floor.name».add_room(«room.name»)
-«room.name».set_connections(«room.connections»)
+«FOR npc : room.npcs»
+«npc.name»_«room.name» = Dungeon.NPC(
+		name="«npc.name»",
+		behaviour=Behaviour.«npc.behaviour»,
+		npc_type=NPCType.«npc.type»,
+		health=«evaluate(npc.baseHealth)»
+)
+«room.name»_«floor.name».add_npc(«npc.name»_«room.name»)
+«ENDFOR»
+
     «ENDFOR»
 «ENDFOR»
+«FOR floor : dungeon.floors»
+    «FOR room : floor.rooms»
+«floor.name».add_room(«room.name»_«floor.name»)
+«room.name»_«floor.name».set_connections([
+	«FOR connection : room.connections SEPARATOR ','»
+«getConnectedRoomName(connection, floor, dungeon.floors)»
+	«ENDFOR»
+]
+)
+	«ENDFOR»
+«ENDFOR»
+
+
+
 # Pygame visualization
 pygame.init()
 # Colors
@@ -176,7 +206,7 @@ WIDTH, HEIGHT = 1920, 1020
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Dungeon Visualization")
 
-biggestWidth = max(len(room.name) for room in Floor1.rooms) * 7.5
+biggestWidth = max(len(room.name) for room in dung.floors[0].rooms) * 7.5
 
 
 def sort_rooms_by_connections(rooms):
@@ -441,6 +471,43 @@ pygame.quit()
 //    '''
     
     // Helper method to escape JSON strings
+ 
+ 	def getConnectedRoomName(String connectedName, Floor currentFloor, EList<Floor> floors) {
+ 		
+ 		for (room : currentFloor.rooms) {
+ 			
+ 			if (room.name == connectedName) {
+ 				return room.name + '_' + currentFloor.name
+ 			}
+ 		}
+ 		
+ 		for (floor : floors) {
+ 			
+ 			for (room : floor.rooms) {
+ 			
+ 				if (room.name == connectedName) {
+ 					return room.name + '_' + floor.name
+ 				}
+ 			}
+ 		}
+ 	}
+    
+    def dispatch int evaluate(NumberLiteral n) {
+    	n.value
+	}
+	
+	def dispatch int evaluate(BinaryOperation b) {
+    val leftVal = b.left.evaluate
+    val rightVal = b.right.evaluate
+    switch b.operator {
+        case '+': leftVal + rightVal
+        case '-': leftVal - rightVal
+        case '*': leftVal * rightVal
+        case '/': leftVal / rightVal
+        default: throw new IllegalArgumentException("Unknown operator: " + b.operator)
+    }
+}
+    
     def escape(String s) {
         if (s === null) {
             return ""
