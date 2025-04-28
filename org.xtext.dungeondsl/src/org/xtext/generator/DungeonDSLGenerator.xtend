@@ -147,7 +147,7 @@ dung = Dungeon("«escape(dungeon.name)»", "«escape(dungeon.theme)»", «dungeo
 
 «FOR floor : dungeon.floors»
 «floor.name» = Dungeon.Floor("«floor.name»")
-Floor1 = «floor.name»
+dung.add_floor(«floor.name»)
 	«FOR room : floor.rooms»
 
 «room.name» = Dungeon.Room(
@@ -233,6 +233,7 @@ def generate_room_positions(rooms):
     while rooms_to_place:
         current_room, current_x, current_y = rooms_to_place.pop(0)
         connections = current_room.connections
+    
 
         directions = {
             "top": (0, -y_increment),
@@ -251,6 +252,8 @@ def generate_room_positions(rooms):
         random.shuffle(available_directions)
 
         for connected_room in connections:
+            if connected_room not in rooms:
+                continue
             if connected_room.name not in placed_rooms:
                 chosen_direction = None
                 for direction_name in available_directions:
@@ -288,75 +291,123 @@ def generate_room_positions(rooms):
     return room_positions
 
 
-# Room positions
-room_positions = generate_room_positions(Floor1.rooms)
-
-# New variables for current room and room rectangles
-current_room = Floor1.rooms[0].name  # Start with the first room
-room_rects = {}
-for room_name, position in room_positions.items():
-    width = biggestWidth
-    size = biggestWidth
-    room_rects[room_name] = pygame.Rect(
-        position[0] - width // 2, position[1] - size // 2, width, size
-    )
-
+# Replace the outer loop structure with this modified version
+currentFloor = dung.floors[0]
+current_room = currentFloor.rooms[0]
+rooms_visited = {current_room}
+undiscovered_rooms = {conn for conn in currentFloor.rooms[0].connections}
 running = True
-rooms_visited = set()
-# Mark the first room as visited by default
-rooms_visited.add(Floor1.rooms[0].name)
-undiscovered_rooms = set()
-# Add connected rooms to the visited set
-for connected_room in Floor1.rooms[0].connections:
-    undiscovered_rooms.add(connected_room.name)
+# Generate room positions for each floor once at the beginning
+floor_room_positions = {}
+floor_room_rects = {}
+for floor in dung.floors:
+    floor_room_positions[floor.name] = generate_room_positions(floor.rooms)
+
+    # Create room rectangles for each floor
+    room_rects = {}
+    for room_name, position in floor_room_positions[floor.name].items():
+        print(f"Room: {room_name}, Position: {position}")
+        width = biggestWidth
+        size = biggestWidth
+        room_rects[room_name] = pygame.Rect(
+            position[0] - width // 2, position[1] - size // 2, width, size
+        )
+    floor_room_rects[floor.name] = room_rects
+
+button_rect = None
+
 while running:
+    # Use cached room positions and rectangles for current floor
+    room_positions = floor_room_positions[currentFloor.name]
+    room_rects = floor_room_rects[currentFloor.name]
+    
+    # Process events BEFORE rendering
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1:  # Left mouse button
-                for room_name, rect in room_rects.items():
-                    if rect.collidepoint(event.pos):
-                        current_room = room_name
-                        room = Floor1.get_room_by_name(current_room)
-                        if current_room not in rooms_visited:
-                            rooms_visited.add(current_room)
-                            # Add connected rooms to the visited set
-
-                        for connected_room in room.connections:
-                            if connected_room.name not in rooms_visited:
-                                undiscovered_rooms.add(connected_room.name)
-
-                        break
-
+            break
+            
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            # Check room clicks
+            for room_name, rect in room_rects.items():
+                if rect.collidepoint(event.pos):
+                    print("Collided with room rect")
+                    room = currentFloor.get_room_by_name(room_name)
+                    current_room = room
+                    if current_room not in rooms_visited:
+                        rooms_visited.add(current_room)
+                    
+                    print(f"Clicked on room: {room.name}")       
+                           
+                    for connected_room in room.connections:
+                        if connected_room not in rooms_visited:
+                            undiscovered_rooms.add(connected_room)
+                    break
+                    
+            # Check for floor transition button click
+            if button_rect and button_rect.collidepoint(event.pos):
+                # Find the destination floor and room
+                for other_floor in dung.floors:
+                    if other_floor != currentFloor:
+                        for room in other_floor.rooms:
+                            for connected_room in room.connections:
+                                if connected_room == current_room:
+                                    currentFloor = other_floor
+                                    current_room = currentFloor.rooms[0]
+                                    rooms_visited = {current_room}
+                                    undiscovered_rooms = {conn for conn in current_room.connections}
+                                    
+                                    room_positions = floor_room_positions[currentFloor.name]
+                                    room_rects = floor_room_rects[currentFloor.name]
+                                    break
+    
     # Clear screen
     screen.fill(color=BLACK)
-
+    
+    # Draw floor transition button
+    current_room_obj = current_room
+    if current_room_obj:
+        for other_floor in dung.floors:
+            if other_floor != currentFloor:
+                for room in other_floor.rooms:
+                    for connected_room in room.connections:
+                        if connected_room == current_room:
+                            button_width, button_height = 150, 50
+                            button_x = WIDTH - button_width - 20
+                            button_y = HEIGHT - button_height - 20
+                            button_rect = pygame.Rect(button_x, button_y, button_width, button_height)
+                            pygame.draw.rect(screen, BLUE, button_rect, border_radius=5)
+                            font = pygame.font.Font(None, 24)
+                            text = font.render("Move to Floor", True, WHITE)
+                            text_rect = text.get_rect(center=button_rect.center)
+                            screen.blit(text, text_rect)
+    
     # Draw connections
-
-    for room in Floor1.rooms:
-        if room.name == current_room or room.name in rooms_visited:
+    for room in currentFloor.rooms:
+        if room == current_room or room in rooms_visited:
             for connected_room in room.connections:
-                pygame.draw.line(
-                    screen,
-                    CUSTOM,
-                    room_positions[room.name],
-                    room_positions[connected_room.name],
-                    2,
-                )
+                if connected_room.name in room_positions and connected_room in currentFloor.rooms:
+                    pygame.draw.line(
+                        screen,
+                        CUSTOM,
+                        room_positions[room.name],
+                        room_positions[connected_room.name],
+                        2,
+                    )
 
     # Draw rooms
     for room_name, position in room_positions.items():
-
-        if room_name not in undiscovered_rooms and room_name not in rooms_visited:
+        room = currentFloor.get_room_by_name(room_name)
+        if room not in undiscovered_rooms and room not in rooms_visited:
             continue
 
-        if room_name in rooms_visited:
-            color = RED if room_name == "Boss" else CUSTOM
+        if room in rooms_visited:
+            color = RED if room.room_type == RoomTypes.BOSS else CUSTOM
         else:
             color = WHITE
-        if room_name == current_room:
-            color = RED if room_name == "Boss" else GREEN
+        if room == current_room:
+            color = RED if room.room_type == RoomTypes.BOSS else GREEN
+            
         width = biggestWidth
         size = biggestWidth
         pygame.draw.rect(
@@ -365,9 +416,10 @@ while running:
             (position[0] - width // 2, position[1] - size // 2, width, size),
             border_radius=10,
         )
+        
         font = pygame.font.Font(None, 16)
-        if room_name in rooms_visited:
-            text = font.render(room_name, True, BLACK)
+        if room in rooms_visited:
+            text = font.render(room.name, True, BLACK)
         else:
             text = font.render("?", True, BLACK)  # Show "?" if not visited
         text_rect = text.get_rect(center=position)
@@ -378,8 +430,8 @@ while running:
 
 pygame.quit()
 '''
-//    
-//    def generateTrapJson(Trap trap) '''
+//
+//    def generateTrapJson(Trap trap) 
 //        {
 //          "name": "«escape(trap.name)»",
 //          "trigger": "«trap.trigger»",
