@@ -78,29 +78,44 @@ public class DungeonDSLValidator extends AbstractDeclarativeValidator {
 	@Check
 	public void checkValidRoomConnections(Floor floor) {
 		Map<String, Room> roomsByName = new HashMap<>();
+		Map<String, Room> roomsByNameLowerCase = new HashMap<>();
 		
 		// Build a map of all rooms in this floor
 		for (Room room : floor.getRooms()) {
 			if (room.getName() != null) {
 				roomsByName.put(room.getName(), room);
+				roomsByNameLowerCase.put(room.getName().toLowerCase(), room);
 			}
 		}
 		
 		// Check all room connections
 		for (Room room : floor.getRooms()) {
-			if (room.getConnections() != null) {
+			if (room.getConnections() != null && room.getName() != null) {
+				String roomNameLower = room.getName().toLowerCase();
+				
 				for (int i = 0; i < room.getConnections().size(); i++) {
 					String connectionName = room.getConnections().get(i);
 					
-					// Check if the connection refers to the room itself
-					if (connectionName.equals(room.getName())) {
-						error("Room '" + room.getName() + "' cannot connect to itself", 
+					if (connectionName == null) {
+						continue;
+					}
+					
+					// Check if the connection refers to the room itself (case-insensitive)
+					// Store the connection name in lowercase for comparison
+					String connectionNameLower = connectionName.toLowerCase();
+					boolean isSelfReference = connectionNameLower.equals(roomNameLower);
+					
+					if (isSelfReference) {
+						error("Room '" + room.getName() + "' cannot connect to itself (case-insensitive match with '" + connectionName + "')", 
 								room, DungeonDSLPackage.Literals.ROOM__CONNECTIONS, i, SELF_CONNECTION);
 						continue;
 					}
 					
-					// Check if the connected room exists
-					if (!roomsByName.containsKey(connectionName)) {
+					// Check if the connected room exists (case-insensitive lookup)
+					Room connectedRoom = roomsByNameLowerCase.get(connectionNameLower);
+					boolean roomExists = connectedRoom != null;
+					
+					if (!roomExists) {
 						error("Room '" + room.getName() + "' connects to non-existent room '" + connectionName + "'", 
 								room, DungeonDSLPackage.Literals.ROOM__CONNECTIONS, i, VALID_ROOM_CONNECTION);
 					}
@@ -115,11 +130,19 @@ public class DungeonDSLValidator extends AbstractDeclarativeValidator {
 	@Check
 	public void checkSymmetricRoomConnections(Floor floor) {
 		Map<String, Set<String>> connections = new HashMap<>();
+		Map<String, Room> roomsByName = new HashMap<>();
+		Map<String, String> normalizedNames = new HashMap<>();
 		
-		// Build a map of all connections
+		// Build maps for connections and name lookups
 		for (Room room : floor.getRooms()) {
 			if (room.getName() != null) {
+				String roomName = room.getName();
+				String roomNameLower = roomName.toLowerCase();
 				Set<String> roomConnections = new HashSet<>();
+				
+				// Store the actual name with lowercase key for lookups
+				normalizedNames.put(roomNameLower, roomName);
+				roomsByName.put(roomName, room);
 				
 				if (room.getConnections() != null) {
 					for (String connection : room.getConnections()) {
@@ -127,26 +150,56 @@ public class DungeonDSLValidator extends AbstractDeclarativeValidator {
 					}
 				}
 				
-				connections.put(room.getName(), roomConnections);
+				connections.put(roomName, roomConnections);
 			}
 		}
 		
 		// Check if connections are symmetric
 		for (Room room : floor.getRooms()) {
 			if (room.getConnections() != null && room.getName() != null) {
+				String roomName = room.getName();
+				String roomNameLower = roomName.toLowerCase();
+				
 				for (int i = 0; i < room.getConnections().size(); i++) {
 					String connectionName = room.getConnections().get(i);
+					String connectionNameLower = connectionName.toLowerCase();
+					
+					// Skip null connections
+					if (connectionName == null) {
+						continue;
+					}
 					
 					// Skip self connections (these are handled by another validation)
-					if (connectionName.equals(room.getName())) {
+					if (connectionNameLower.equals(roomNameLower)) {
+						continue;
+					}
+					
+					// Find the actual connected room's name using case-insensitive lookup
+					String actualConnectedName = normalizedNames.get(connectionNameLower);
+					
+					// If we can't find a matching room name, this connection is invalid
+					// (This will be caught by the checkValidRoomConnections method)
+					if (actualConnectedName == null) {
 						continue;
 					}
 					
 					// Check if the connected room refers back to this room
-					Set<String> reverseConnections = connections.get(connectionName);
-					if (reverseConnections != null && !reverseConnections.contains(room.getName())) {
-						warning("Room '" + connectionName + "' does not connect back to room '" + room.getName() + "'", 
-								room, DungeonDSLPackage.Literals.ROOM__CONNECTIONS, i, SYMMETRIC_ROOM_CONNECTION);
+					Set<String> reverseConnections = connections.get(actualConnectedName);
+					if (reverseConnections != null) {
+						boolean hasReverseConnection = false;
+						
+						// Check if any of the connections in the connected room match this room (case-insensitive)
+						for (String reverseConnection : reverseConnections) {
+							if (reverseConnection != null && reverseConnection.toLowerCase().equals(roomNameLower)) {
+								hasReverseConnection = true;
+								break;
+							}
+						}
+						
+						if (!hasReverseConnection) {
+							warning("Room '" + actualConnectedName + "' does not connect back to room '" + roomName + "'", 
+									room, DungeonDSLPackage.Literals.ROOM__CONNECTIONS, i, SYMMETRIC_ROOM_CONNECTION);
+						}
 					}
 				}
 			}
