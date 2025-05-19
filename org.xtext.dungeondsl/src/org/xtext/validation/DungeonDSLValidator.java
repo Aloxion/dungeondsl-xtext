@@ -11,7 +11,9 @@ import java.util.Set;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EReference;
 import org.eclipse.emf.ecore.EStructuralFeature;
+import org.eclipse.xtext.validation.AbstractDeclarativeValidator;
 import org.eclipse.xtext.validation.Check;
+import org.eclipse.xtext.validation.EValidatorRegistrar;
 import org.xtext.dungeonDSL.BOOLEAN;
 import org.xtext.dungeonDSL.Dungeon;
 import org.xtext.dungeonDSL.DungeonDSLPackage;
@@ -28,7 +30,12 @@ import org.xtext.dungeonDSL.Trap;
  *
  * See https://www.eclipse.org/Xtext/documentation/303_runtime_concepts.html#validation
  */
-public class DungeonDSLValidator extends AbstractDungeonDSLValidator {
+public class DungeonDSLValidator extends AbstractDeclarativeValidator {
+	
+	@Override
+	public void register(EValidatorRegistrar registrar) {
+		// Do nothing, called by Eclipse
+	}
 	
 	// Error/Warning code constants
 	public static final String UNIQUE_ROOM_NAME = "uniqueRoomName";
