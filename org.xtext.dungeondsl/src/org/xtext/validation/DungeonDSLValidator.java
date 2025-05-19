@@ -3,6 +3,25 @@
  */
 package org.xtext.validation;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import org.eclipse.emf.ecore.EObject;
+import org.eclipse.emf.ecore.EReference;
+import org.eclipse.emf.ecore.EStructuralFeature;
+import org.eclipse.xtext.validation.Check;
+import org.xtext.dungeonDSL.BOOLEAN;
+import org.xtext.dungeonDSL.Dungeon;
+import org.xtext.dungeonDSL.DungeonDSLPackage;
+import org.xtext.dungeonDSL.Floor;
+import org.xtext.dungeonDSL.NPC;
+import org.xtext.dungeonDSL.NPCType;
+import org.xtext.dungeonDSL.Room;
+import org.xtext.dungeonDSL.RoomTypes;
+import org.xtext.dungeonDSL.Sizes;
+import org.xtext.dungeonDSL.Trap;
 
 /**
  * This class contains custom validation rules. 
@@ -11,15 +30,192 @@ package org.xtext.validation;
  */
 public class DungeonDSLValidator extends AbstractDungeonDSLValidator {
 	
-//	public static final String INVALID_NAME = "invalidName";
-//
-//	@Check
-//	public void checkGreetingStartsWithCapital(Greeting greeting) {
-//		if (!Character.isUpperCase(greeting.getName().charAt(0))) {
-//			warning("Name should start with a capital",
-//					DungeonDSLPackage.Literals.GREETING__NAME,
-//					INVALID_NAME);
-//		}
-//	}
+	// Error/Warning code constants
+	public static final String UNIQUE_ROOM_NAME = "uniqueRoomName";
+	public static final String UNIQUE_TRAP_NAME = "uniqueTrapName";
+	public static final String VALID_ROOM_CONNECTION = "validRoomConnection";
+	public static final String SYMMETRIC_ROOM_CONNECTION = "symmetricRoomConnection";
+	public static final String SELF_CONNECTION = "selfConnection";
+	public static final String VALID_TRIGGER_CHANCE = "validTriggerChance";
+	public static final String DISARMABLE_TRAP_IN_PUZZLE = "disarmableTrapInPuzzle";
+	public static final String FLOOR_REQUIRES_COMBAT = "floorRequiresCombat";
+	public static final String SHOP_SIZE_CONSTRAINT = "shopSizeConstraint";
 	
+	/**
+	 * Validates that all Room names within a Floor are unique
+	 */
+	@Check
+	public void checkUniqueRoomNames(Floor floor) {
+		Set<String> roomNames = new HashSet<>();
+		
+		for (Room room : floor.getRooms()) {
+			if (room.getName() != null && !roomNames.add(room.getName())) {
+				error("Duplicate room name '" + room.getName() + "' in floor '" + floor.getName() + "'", 
+						room, DungeonDSLPackage.Literals.ROOM__NAME, UNIQUE_ROOM_NAME);
+			}
+		}
+	}
+	
+	/**
+	 * Validates that all Trap names within a Room are unique
+	 */
+	@Check
+	public void checkUniqueTrapNames(Room room) {
+		Set<String> trapNames = new HashSet<>();
+		
+		for (Trap trap : room.getTraps()) {
+			if (trap.getName() != null && !trapNames.add(trap.getName())) {
+				error("Duplicate trap name '" + trap.getName() + "' in room '" + room.getName() + "'", 
+						trap, DungeonDSLPackage.Literals.TRAP__NAME, UNIQUE_TRAP_NAME);
+			}
+		}
+	}
+	
+	/**
+	 * Validates that room connections refer to existing rooms on the same floor
+	 * and that a room cannot connect to itself
+	 */
+	@Check
+	public void checkValidRoomConnections(Floor floor) {
+		Map<String, Room> roomsByName = new HashMap<>();
+		
+		// Build a map of all rooms in this floor
+		for (Room room : floor.getRooms()) {
+			if (room.getName() != null) {
+				roomsByName.put(room.getName(), room);
+			}
+		}
+		
+		// Check all room connections
+		for (Room room : floor.getRooms()) {
+			if (room.getConnections() != null) {
+				for (int i = 0; i < room.getConnections().size(); i++) {
+					String connectionName = room.getConnections().get(i);
+					
+					// Check if the connection refers to the room itself
+					if (connectionName.equals(room.getName())) {
+						error("Room '" + room.getName() + "' cannot connect to itself", 
+								room, DungeonDSLPackage.Literals.ROOM__CONNECTIONS, i, SELF_CONNECTION);
+						continue;
+					}
+					
+					// Check if the connected room exists
+					if (!roomsByName.containsKey(connectionName)) {
+						error("Room '" + room.getName() + "' connects to non-existent room '" + connectionName + "'", 
+								room, DungeonDSLPackage.Literals.ROOM__CONNECTIONS, i, VALID_ROOM_CONNECTION);
+					}
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Validates that room connections are symmetric (if A connects to B, then B must connect to A)
+	 */
+	@Check
+	public void checkSymmetricRoomConnections(Floor floor) {
+		Map<String, Set<String>> connections = new HashMap<>();
+		
+		// Build a map of all connections
+		for (Room room : floor.getRooms()) {
+			if (room.getName() != null) {
+				Set<String> roomConnections = new HashSet<>();
+				
+				if (room.getConnections() != null) {
+					for (String connection : room.getConnections()) {
+						roomConnections.add(connection);
+					}
+				}
+				
+				connections.put(room.getName(), roomConnections);
+			}
+		}
+		
+		// Check if connections are symmetric
+		for (Room room : floor.getRooms()) {
+			if (room.getConnections() != null && room.getName() != null) {
+				for (int i = 0; i < room.getConnections().size(); i++) {
+					String connectionName = room.getConnections().get(i);
+					
+					// Skip self connections (these are handled by another validation)
+					if (connectionName.equals(room.getName())) {
+						continue;
+					}
+					
+					// Check if the connected room refers back to this room
+					Set<String> reverseConnections = connections.get(connectionName);
+					if (reverseConnections != null && !reverseConnections.contains(room.getName())) {
+						warning("Room '" + connectionName + "' does not connect back to room '" + room.getName() + "'", 
+								room, DungeonDSLPackage.Literals.ROOM__CONNECTIONS, i, SYMMETRIC_ROOM_CONNECTION);
+					}
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Validates that trap trigger chance is within valid range (0-100)
+	 */
+	@Check
+	public void checkTrapTriggerChance(Trap trap) {
+		if (trap.getTriggerChance() < 0 || trap.getTriggerChance() > 100) {
+			error("Trap trigger chance must be between 0 and 100", 
+					trap, DungeonDSLPackage.Literals.TRAP__TRIGGER_CHANCE, VALID_TRIGGER_CHANCE);
+		}
+	}
+	
+	/**
+	 * Validates that non-disarmable traps are not used in PUZZLE rooms
+	 */
+	@Check
+	public void checkDisarmableTrapInPuzzle(Room room) {
+		if (room.getType() == RoomTypes.PUZZLE) {
+			for (Trap trap : room.getTraps()) {
+				if (trap.getDisarmable() == BOOLEAN.FALSE) {
+					error("Non-disarmable traps cannot be used in PUZZLE rooms", 
+							trap, DungeonDSLPackage.Literals.TRAP__DISARMABLE, DISARMABLE_TRAP_IN_PUZZLE);
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Validates that SHOP rooms must be SMALL or MEDIUM in size (not LARGE)
+	 */
+	@Check
+	public void checkShopSize(Room room) {
+		if (room.getType() == RoomTypes.SHOP && room.getSize() == Sizes.LARGE) {
+			error("SHOP rooms must be SMALL or MEDIUM in size", 
+					room, DungeonDSLPackage.Literals.ROOM__SIZE, SHOP_SIZE_CONSTRAINT);
+		}
+	}
+	
+	/**
+	 * Validates that each floor contains at least one COMBAT room
+	 */
+	@Check
+	public void checkFloorContainsCombatRoom(Floor floor) {
+		boolean hasCombatRoom = false;
+		
+		for (Room room : floor.getRooms()) {
+			if (room.getType() == RoomTypes.COMBAT) {
+				hasCombatRoom = true;
+				break;
+			}
+		}
+		
+		if (!hasCombatRoom && !floor.getRooms().isEmpty()) {
+			warning("Each floor should contain at least one COMBAT room", 
+					floor, DungeonDSLPackage.Literals.FLOOR__ROOMS, FLOOR_REQUIRES_COMBAT);
+		}
+	}
+	
+	/**
+	 * Validates dungeon-level consistency by ensuring that each Room's floorID
+	 * corresponds to a floor declared in the same Dungeon.
+	 * 
+	 * Note: This is implicitly handled by the Xtext containment hierarchy,
+	 * as Rooms are contained within Floors, which are contained within Dungeons.
+	 * However, we could add additional validation if needed.
+	 */
 }
