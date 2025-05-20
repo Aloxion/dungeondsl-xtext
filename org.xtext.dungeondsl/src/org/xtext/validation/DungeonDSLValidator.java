@@ -3,10 +3,18 @@
  */
 package org.xtext.validation;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import org.eclipse.emf.common.util.EList;
+import org.eclipse.emf.ecore.EPackage;
+import org.eclipse.emf.ecore.EReference;
+import org.eclipse.emf.ecore.EAttribute;
+import org.eclipse.emf.ecore.EValidator;
 import org.eclipse.xtext.validation.AbstractDeclarativeValidator;
 import org.eclipse.xtext.validation.Check;
 import org.eclipse.xtext.validation.EValidatorRegistrar;
@@ -19,17 +27,20 @@ import org.xtext.dungeonDSL.Sizes;
 import org.xtext.dungeonDSL.Trap;
 
 /**
- * This class contains custom validation rules. 
+ * This class contains custom validation rules.
  *
- * See https://www.eclipse.org/Xtext/documentation/303_runtime_concepts.html#validation
+ * See
+ * https://www.eclipse.org/Xtext/documentation/303_runtime_concepts.html#validation
  */
 public class DungeonDSLValidator extends AbstractDeclarativeValidator {
-	
+
 	@Override
-	public void register(EValidatorRegistrar registrar) {
-		// Do nothing, called by Eclipse
+	protected List<EPackage> getEPackages() {
+		List<EPackage> result = new ArrayList<EPackage>();
+		result.add(DungeonDSLPackage.eINSTANCE);
+		return result;
 	}
-	
+
 	// Error/Warning code constants
 	public static final String UNIQUE_ROOM_NAME = "uniqueRoomName";
 	public static final String UNIQUE_TRAP_NAME = "uniqueTrapName";
@@ -40,37 +51,37 @@ public class DungeonDSLValidator extends AbstractDeclarativeValidator {
 	public static final String DISARMABLE_TRAP_IN_PUZZLE = "disarmableTrapInPuzzle";
 	public static final String FLOOR_REQUIRES_COMBAT = "floorRequiresCombat";
 	public static final String SHOP_SIZE_CONSTRAINT = "shopSizeConstraint";
-	
+
 	/**
 	 * Validates that all Room names within a Floor are unique
 	 */
 	@Check
 	public void checkUniqueRoomNames(Floor floor) {
 		Set<String> roomNames = new HashSet<>();
-		
+
 		for (Room room : floor.getRooms()) {
 			if (room.getName() != null && !roomNames.add(room.getName())) {
-				error("Duplicate room name '" + room.getName() + "' in floor '" + floor.getName() + "'", 
+				error("Duplicate room name '" + room.getName() + "' in floor '" + floor.getName() + "'",
 						room, DungeonDSLPackage.Literals.ROOM__NAME, UNIQUE_ROOM_NAME);
 			}
 		}
 	}
-	
+
 	/**
 	 * Validates that all Trap names within a Room are unique
 	 */
 	@Check
 	public void checkUniqueTrapNames(Room room) {
 		Set<String> trapNames = new HashSet<>();
-		
+
 		for (Trap trap : room.getTraps()) {
 			if (trap.getName() != null && !trapNames.add(trap.getName())) {
-				error("Duplicate trap name '" + trap.getName() + "' in room '" + room.getName() + "'", 
+				error("Duplicate trap name '" + trap.getName() + "' in room '" + room.getName() + "'",
 						trap, DungeonDSLPackage.Literals.TRAP__NAME, UNIQUE_TRAP_NAME);
 			}
 		}
 	}
-	
+
 	/**
 	 * Validates that room connections refer to existing rooms on the same floor
 	 * and that a room cannot connect to itself
@@ -79,7 +90,7 @@ public class DungeonDSLValidator extends AbstractDeclarativeValidator {
 	public void checkValidRoomConnections(Floor floor) {
 		Map<String, Room> roomsByName = new HashMap<>();
 		Map<String, Room> roomsByNameLowerCase = new HashMap<>();
-		
+
 		// Build a map of all rooms in this floor
 		for (Room room : floor.getRooms()) {
 			if (room.getName() != null) {
@@ -87,117 +98,121 @@ public class DungeonDSLValidator extends AbstractDeclarativeValidator {
 				roomsByNameLowerCase.put(room.getName().toLowerCase(), room);
 			}
 		}
-		
+
 		// Check all room connections
 		for (Room room : floor.getRooms()) {
 			if (room.getConnections() != null && room.getName() != null) {
 				String roomNameLower = room.getName().toLowerCase();
-				
+
 				for (int i = 0; i < room.getConnections().size(); i++) {
 					String connectionName = room.getConnections().get(i);
-					
+
 					if (connectionName == null) {
 						continue;
 					}
-					
+
 					// Check if the connection refers to the room itself (case-insensitive)
 					// Store the connection name in lowercase for comparison
 					String connectionNameLower = connectionName.toLowerCase();
 					boolean isSelfReference = connectionNameLower.equals(roomNameLower);
-					
+
 					if (isSelfReference) {
-						error("Room '" + room.getName() + "' cannot connect to itself (case-insensitive match with '" + connectionName + "')", 
+						error("Room '" + room.getName() + "' cannot connect to itself (case-insensitive match with '"
+								+ connectionName + "')",
 								room, DungeonDSLPackage.Literals.ROOM__CONNECTIONS, i, SELF_CONNECTION);
 						continue;
 					}
-					
+
 					// Check if the connected room exists (case-insensitive lookup)
 					Room connectedRoom = roomsByNameLowerCase.get(connectionNameLower);
 					boolean roomExists = connectedRoom != null;
-					
+
 					if (!roomExists) {
-						error("Room '" + room.getName() + "' connects to non-existent room '" + connectionName + "'", 
+						error("Room '" + room.getName() + "' connects to non-existent room '" + connectionName + "'",
 								room, DungeonDSLPackage.Literals.ROOM__CONNECTIONS, i, VALID_ROOM_CONNECTION);
 					}
 				}
 			}
 		}
 	}
-	
+
 	/**
-	 * Validates that room connections are symmetric (if A connects to B, then B must connect to A)
+	 * Validates that room connections are symmetric (if A connects to B, then B
+	 * must connect to A)
 	 */
 	@Check
 	public void checkSymmetricRoomConnections(Floor floor) {
 		Map<String, Set<String>> connections = new HashMap<>();
 		Map<String, Room> roomsByName = new HashMap<>();
 		Map<String, String> normalizedNames = new HashMap<>();
-		
+
 		// Build maps for connections and name lookups
 		for (Room room : floor.getRooms()) {
 			if (room.getName() != null) {
 				String roomName = room.getName();
 				String roomNameLower = roomName.toLowerCase();
 				Set<String> roomConnections = new HashSet<>();
-				
+
 				// Store the actual name with lowercase key for lookups
 				normalizedNames.put(roomNameLower, roomName);
 				roomsByName.put(roomName, room);
-				
+
 				if (room.getConnections() != null) {
 					for (String connection : room.getConnections()) {
 						roomConnections.add(connection);
 					}
 				}
-				
+
 				connections.put(roomName, roomConnections);
 			}
 		}
-		
+
 		// Check if connections are symmetric
 		for (Room room : floor.getRooms()) {
 			if (room.getConnections() != null && room.getName() != null) {
 				String roomName = room.getName();
 				String roomNameLower = roomName.toLowerCase();
-				
+
 				for (int i = 0; i < room.getConnections().size(); i++) {
 					String connectionName = room.getConnections().get(i);
 					String connectionNameLower = connectionName.toLowerCase();
-					
+
 					// Skip null connections
 					if (connectionName == null) {
 						continue;
 					}
-					
+
 					// Skip self connections (these are handled by another validation)
 					if (connectionNameLower.equals(roomNameLower)) {
 						continue;
 					}
-					
+
 					// Find the actual connected room's name using case-insensitive lookup
 					String actualConnectedName = normalizedNames.get(connectionNameLower);
-					
+
 					// If we can't find a matching room name, this connection is invalid
 					// (This will be caught by the checkValidRoomConnections method)
 					if (actualConnectedName == null) {
 						continue;
 					}
-					
+
 					// Check if the connected room refers back to this room
 					Set<String> reverseConnections = connections.get(actualConnectedName);
 					if (reverseConnections != null) {
 						boolean hasReverseConnection = false;
-						
-						// Check if any of the connections in the connected room match this room (case-insensitive)
+
+						// Check if any of the connections in the connected room match this room
+						// (case-insensitive)
 						for (String reverseConnection : reverseConnections) {
 							if (reverseConnection != null && reverseConnection.toLowerCase().equals(roomNameLower)) {
 								hasReverseConnection = true;
 								break;
 							}
 						}
-						
+
 						if (!hasReverseConnection) {
-							warning("Room '" + actualConnectedName + "' does not connect back to room '" + roomName + "'", 
+							warning("Room '" + actualConnectedName + "' does not connect back to room '" + roomName
+									+ "'",
 									room, DungeonDSLPackage.Literals.ROOM__CONNECTIONS, i, SYMMETRIC_ROOM_CONNECTION);
 						}
 					}
@@ -205,18 +220,18 @@ public class DungeonDSLValidator extends AbstractDeclarativeValidator {
 			}
 		}
 	}
-	
+
 	/**
 	 * Validates that trap trigger chance is within valid range (0-100)
 	 */
 	@Check
 	public void checkTrapTriggerChance(Trap trap) {
 		if (trap.getTriggerChance() < 0 || trap.getTriggerChance() > 100) {
-			error("Trap trigger chance must be between 0 and 100", 
+			error("Trap trigger chance must be between 0 and 100",
 					trap, DungeonDSLPackage.Literals.TRAP__TRIGGER_CHANCE, VALID_TRIGGER_CHANCE);
 		}
 	}
-	
+
 	/**
 	 * Validates that non-disarmable traps are not used in PUZZLE rooms
 	 */
@@ -225,44 +240,44 @@ public class DungeonDSLValidator extends AbstractDeclarativeValidator {
 		if (room.getType() == RoomTypes.PUZZLE) {
 			for (Trap trap : room.getTraps()) {
 				if (trap.getDisarmable() == BOOLEAN.FALSE) {
-					error("Non-disarmable traps cannot be used in PUZZLE rooms", 
+					error("Non-disarmable traps cannot be used in PUZZLE rooms",
 							trap, DungeonDSLPackage.Literals.TRAP__DISARMABLE, DISARMABLE_TRAP_IN_PUZZLE);
 				}
 			}
 		}
 	}
-	
+
 	/**
 	 * Validates that SHOP rooms must be SMALL or MEDIUM in size (not LARGE)
 	 */
 	@Check
 	public void checkShopSize(Room room) {
 		if (room.getType() == RoomTypes.SHOP && room.getSize() == Sizes.LARGE) {
-			error("SHOP rooms must be SMALL or MEDIUM in size", 
+			error("SHOP rooms must be SMALL or MEDIUM in size",
 					room, DungeonDSLPackage.Literals.ROOM__SIZE, SHOP_SIZE_CONSTRAINT);
 		}
 	}
-	
+
 	/**
 	 * Validates that each floor contains at least one COMBAT room
 	 */
 	@Check
 	public void checkFloorContainsCombatRoom(Floor floor) {
 		boolean hasCombatRoom = false;
-		
+
 		for (Room room : floor.getRooms()) {
 			if (room.getType() == RoomTypes.COMBAT) {
 				hasCombatRoom = true;
 				break;
 			}
 		}
-		
+
 		if (!hasCombatRoom && !floor.getRooms().isEmpty()) {
-			warning("Each floor should contain at least one COMBAT room", 
+			warning("Each floor should contain at least one COMBAT room",
 					floor, DungeonDSLPackage.Literals.FLOOR__ROOMS, FLOOR_REQUIRES_COMBAT);
 		}
 	}
-	
+
 	/**
 	 * Validates dungeon-level consistency by ensuring that each Room's floorID
 	 * corresponds to a floor declared in the same Dungeon.
