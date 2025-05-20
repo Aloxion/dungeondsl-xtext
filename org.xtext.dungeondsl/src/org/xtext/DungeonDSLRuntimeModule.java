@@ -3,9 +3,29 @@
  */
 package org.xtext;
 
+import org.eclipse.xtext.validation.CompositeEValidator;
+import org.xtext.validation.DungeonDSLValidator;
 
 /**
- * Use this class to register components to be used at runtime / without the Equinox extension registry.
+ * Use this class to register components to be used at runtime / without the
+ * Equinox extension registry.
  */
 public class DungeonDSLRuntimeModule extends AbstractDungeonDSLRuntimeModule {
+
+    @Override
+    public Class<? extends org.eclipse.xtext.validation.IValidator> bindIValidator() {
+        return DungeonDSLValidator.class;
+    }
+
+    // This ensures our validator is properly registered
+    public void configureEValidator(com.google.inject.Binder binder) {
+        binder.bind(org.eclipse.xtext.validation.EValidatorRegistrar.class)
+                .annotatedWith(com.google.inject.name.Names.named(CompositeEValidator.DISABLE_EVALIDATORS))
+                .toInstance(new org.eclipse.xtext.validation.EValidatorRegistrar() {
+                    public void register(org.eclipse.emf.ecore.EValidator.Registry registry,
+                            org.eclipse.emf.ecore.EValidator validator) {
+                        // Do nothing, prevents duplicate registration
+                    }
+                });
+    }
 }
