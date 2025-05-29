@@ -3,23 +3,328 @@
  */
 package org.xtext.validation;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import org.eclipse.xtext.validation.AbstractDeclarativeValidator;
+import org.eclipse.xtext.validation.Check;
+import org.eclipse.xtext.validation.EValidatorRegistrar;
+import org.xtext.dungeonDSL.BOOLEAN;
+import org.xtext.dungeonDSL.DungeonDSLPackage;
+import org.xtext.dungeonDSL.Floor;
+import org.xtext.dungeonDSL.Room;
+import org.xtext.dungeonDSL.RoomTypes;
+import org.xtext.dungeonDSL.Sizes;
+import org.xtext.dungeonDSL.Trap;
 
 /**
- * This class contains custom validation rules. 
+ * This class contains custom validation rules for the DungeonDSL language.
+ * 
+ * The validator extends AbstractDeclarativeValidator, which allows methods
+ * annotated
+ * with @Check to be automatically called during validation. Each validation
+ * method
+ * checks specific business rules and constraints for the dungeon modeling
+ * language.
  *
- * See https://www.eclipse.org/Xtext/documentation/303_runtime_concepts.html#validation
+ * See
+ * https://www.eclipse.org/Xtext/documentation/303_runtime_concepts.html#validation
  */
-public class DungeonDSLValidator extends AbstractDungeonDSLValidator {
-	
-//	public static final String INVALID_NAME = "invalidName";
-//
-//	@Check
-//	public void checkGreetingStartsWithCapital(Greeting greeting) {
-//		if (!Character.isUpperCase(greeting.getName().charAt(0))) {
-//			warning("Name should start with a capital",
-//					DungeonDSLPackage.Literals.GREETING__NAME,
-//					INVALID_NAME);
-//		}
-//	}
-	
+public class DungeonDSLValidator extends AbstractDeclarativeValidator {
+
+    /**
+     * Required override for Xtext framework integration.
+     * Empty implementation is standard for custom validators.
+     */
+    @Override
+    public void register(EValidatorRegistrar registrar) {
+        // Do nothing, called by Eclipse
+    }
+
+    // Error/Warning code constants - these provide unique identifiers for each
+    // validation rule
+    // allowing IDEs to provide specific quick fixes and filtering options
+    public static final String UNIQUE_ROOM_NAME = "uniqueRoomName";
+    public static final String UNIQUE_TRAP_NAME = "uniqueTrapName";
+    public static final String VALID_ROOM_CONNECTION = "validRoomConnection";
+    public static final String SYMMETRIC_ROOM_CONNECTION = "symmetricRoomConnection";
+    public static final String SELF_CONNECTION = "selfConnection";
+    public static final String VALID_TRIGGER_CHANCE = "validTriggerChance";
+    public static final String DISARMABLE_TRAP_IN_PUZZLE = "disarmableTrapInPuzzle";
+    public static final String FLOOR_REQUIRES_COMBAT = "floorRequiresCombat";
+    public static final String SHOP_SIZE_CONSTRAINT = "shopSizeConstraint";
+
+    /**
+     * Validates that all Room names within a Floor are unique.
+     * 
+     * Business Rule: Each room on a floor must have a unique name for
+     * identification.
+     */
+    @Check // Annotation tells Xtext to call this method during validation
+    public void checkUniqueRoomNames(Floor floor) {
+        // HashSet automatically handles uniqueness - add() returns false if item
+        // already exists
+        Set<String> roomNames = new HashSet<>();
+
+        // Iterate through all rooms in the current floor
+        for (Room room : floor.getRooms()) {
+            // Check if room has a name AND if adding to set returns false (duplicate)
+            if (room.getName() != null && !roomNames.add(room.getName())) {
+                // Create validation error with specific location (room name field)
+                error("Duplicate room name '" + room.getName() + "' in floor '" + floor.getName() + "'",
+                        room, // The object containing the error
+                        DungeonDSLPackage.Literals.ROOM__NAME, // Specific field that has the error
+                        UNIQUE_ROOM_NAME); // Error code for tooling
+            }
+        }
+    }
+
+    /**
+     * Validates that all Trap names within a Room are unique.
+     * 
+     * Business Rule: Each trap in a room must have a unique name for
+     * identification.
+     */
+    @Check
+    public void checkUniqueTrapNames(Room room) {
+        Set<String> trapNames = new HashSet<>();
+
+        // Check each trap in the current room
+        for (Trap trap : room.getTraps()) {
+            // Same uniqueness logic as room names
+            if (trap.getName() != null && !trapNames.add(trap.getName())) {
+                error("Duplicate trap name '" + trap.getName() + "' in room '" + room.getName() + "'",
+                        trap, DungeonDSLPackage.Literals.TRAP__NAME, UNIQUE_TRAP_NAME);
+            }
+        }
+    }
+
+    /**
+     * Validates that room connections refer to existing rooms on the same floor
+     * and that a room cannot connect to itself.
+     * 
+     * Business Rules:
+     * 1. Connected rooms must exist on the same floor
+     * 2. Rooms cannot connect to themselves
+     * 3. Case-insensitive matching for flexibility
+     */
+    @Check
+    public void checkValidRoomConnections(Floor floor) {
+        // Create lookup maps for efficient room name validation
+        Map<String, Room> roomsByName = new HashMap<>(); // Exact case mapping
+        Map<String, Room> roomsByNameLowerCase = new HashMap<>(); // Case-insensitive mapping
+
+        // Build lookup maps of all rooms in this floor
+        for (Room room : floor.getRooms()) {
+            if (room.getName() != null) {
+                roomsByName.put(room.getName(), room);
+                // Store lowercase version for case-insensitive lookups
+                roomsByNameLowerCase.put(room.getName().toLowerCase(), room);
+            }
+        }
+
+        // Validate each room's connections
+        for (Room room : floor.getRooms()) {
+            if (room.getConnections() != null && room.getName() != null) {
+                String roomNameLower = room.getName().toLowerCase();
+
+                // Check each connection in the room's connection list
+                for (int i = 0; i < room.getConnections().size(); i++) {
+                    String connectionName = room.getConnections().get(i);
+
+                    if (connectionName == null) {
+                        continue; // Skip null connections
+                    }
+
+                    // Convert to lowercase for case-insensitive comparison
+                    String connectionNameLower = connectionName.toLowerCase();
+                    boolean isSelfReference = connectionNameLower.equals(roomNameLower);
+
+                    // Check for self-connection (room connecting to itself)
+                    if (isSelfReference) {
+                        // Use index 'i' to highlight the specific connection in the list
+                        error("Room '" + room.getName() + "' cannot connect to itself (case-insensitive match with '"
+                                + connectionName + "')",
+                                room, DungeonDSLPackage.Literals.ROOM__CONNECTIONS, i, SELF_CONNECTION);
+                        continue;
+                    }
+
+                    // Check if the target room exists (case-insensitive)
+                    Room connectedRoom = roomsByNameLowerCase.get(connectionNameLower);
+                    boolean roomExists = connectedRoom != null;
+
+                    if (!roomExists) {
+                        // Mark the specific connection index as having an error
+                        error("Room '" + room.getName() + "' connects to non-existent room '" + connectionName + "'",
+                                room, DungeonDSLPackage.Literals.ROOM__CONNECTIONS, i, VALID_ROOM_CONNECTION);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Validates that room connections are symmetric (bidirectional).
+     * 
+     * Business Rule: If Room A connects to Room B, then Room B should connect back
+     * to Room A.
+     * This ensures logical consistency in dungeon navigation.
+     */
+    @Check
+    public void checkSymmetricRoomConnections(Floor floor) {
+        // Data structures for tracking connections and name mappings
+        Map<String, Set<String>> connections = new HashMap<>(); // Room name -> Set of connected room names
+        Map<String, Room> roomsByName = new HashMap<>(); // Room name -> Room object
+        Map<String, String> normalizedNames = new HashMap<>(); // lowercase name -> actual name
+
+        // Build comprehensive mapping structures
+        for (Room room : floor.getRooms()) {
+            if (room.getName() != null) {
+                String roomName = room.getName();
+                String roomNameLower = roomName.toLowerCase();
+                Set<String> roomConnections = new HashSet<>();
+
+                // Store actual name with lowercase key for case-insensitive lookups
+                normalizedNames.put(roomNameLower, roomName);
+                roomsByName.put(roomName, room);
+
+                // Collect all connections for this room
+                if (room.getConnections() != null) {
+                    for (String connection : room.getConnections()) {
+                        roomConnections.add(connection);
+                    }
+                }
+
+                // Store the complete connection set for this room
+                connections.put(roomName, roomConnections);
+            }
+        }
+
+        // Check bidirectional connection consistency
+        for (Room room : floor.getRooms()) {
+            if (room.getConnections() != null && room.getName() != null) {
+                String roomName = room.getName();
+                String roomNameLower = roomName.toLowerCase();
+
+                // Examine each outgoing connection
+                for (int i = 0; i < room.getConnections().size(); i++) {
+                    String connectionName = room.getConnections().get(i);
+                    String connectionNameLower = connectionName.toLowerCase();
+
+                    // Skip null and self-connections (handled by other validators)
+                    if (connectionName == null || connectionNameLower.equals(roomNameLower)) {
+                        continue;
+                    }
+
+                    // Find the actual room name using case-insensitive lookup
+                    String actualConnectedName = normalizedNames.get(connectionNameLower);
+
+                    // Skip invalid connections (handled by checkValidRoomConnections)
+                    if (actualConnectedName == null) {
+                        continue;
+                    }
+
+                    // Check if the target room has a reverse connection back to this room
+                    Set<String> reverseConnections = connections.get(actualConnectedName);
+                    if (reverseConnections != null) {
+                        boolean hasReverseConnection = false;
+
+                        // Search for a connection back to this room (case-insensitive)
+                        for (String reverseConnection : reverseConnections) {
+                            if (reverseConnection != null && reverseConnection.toLowerCase().equals(roomNameLower)) {
+                                hasReverseConnection = true;
+                                break;
+                            }
+                        }
+
+                        // Generate warning if connection is not bidirectional
+                        if (!hasReverseConnection) {
+                            warning("Room '" + actualConnectedName + "' does not connect back to room '" + roomName
+                                    + "'",
+                                    room, DungeonDSLPackage.Literals.ROOM__CONNECTIONS, i, SYMMETRIC_ROOM_CONNECTION);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Validates that trap trigger chance is within the valid percentage range.
+     * 
+     * Business Rule: Trigger chance must be a valid percentage (0-100).
+     */
+    @Check
+    public void checkTrapTriggerChance(Trap trap) {
+        // Simple range validation for percentage values
+        if (trap.getTriggerChance() < 0 || trap.getTriggerChance() > 100) {
+            error("Trap trigger chance must be between 0 and 100",
+                    trap, DungeonDSLPackage.Literals.TRAP__TRIGGER_CHANCE, VALID_TRIGGER_CHANCE);
+        }
+    }
+
+    /**
+     * Validates that non-disarmable traps are not used in PUZZLE rooms.
+     * 
+     * Business Rule: Puzzle rooms should only contain traps that can be disarmed,
+     * as puzzles typically involve skill-based solutions rather than unavoidable
+     * damage.
+     */
+    @Check
+    public void checkDisarmableTrapInPuzzle(Room room) {
+        // Only apply this rule to PUZZLE type rooms
+        if (room.getType() == RoomTypes.PUZZLE) {
+            // Check all traps in the puzzle room
+            for (Trap trap : room.getTraps()) {
+                // Flag non-disarmable traps as errors
+                if (trap.getDisarmable() == BOOLEAN.FALSE) {
+                    error("Non-disarmable traps cannot be used in PUZZLE rooms",
+                            trap, DungeonDSLPackage.Literals.TRAP__DISARMABLE, DISARMABLE_TRAP_IN_PUZZLE);
+                }
+            }
+        }
+    }
+
+    /**
+     * Validates that SHOP rooms have appropriate size constraints.
+     * 
+     * Business Rule: Shop rooms must be SMALL or MEDIUM sized, not LARGE.
+     * This enforces design consistency and resource management.
+     */
+    @Check
+    public void checkShopSize(Room room) {
+        // Apply size constraint only to SHOP rooms
+        if (room.getType() == RoomTypes.SHOP && room.getSize() == Sizes.LARGE) {
+            error("SHOP rooms must be SMALL or MEDIUM in size",
+                    room, DungeonDSLPackage.Literals.ROOM__SIZE, SHOP_SIZE_CONSTRAINT);
+        }
+    }
+
+    /**
+     * Validates that each floor contains at least one COMBAT room.
+     * 
+     * Business Rule: Every floor should have combat encounters to ensure
+     * gameplay balance and challenge progression.
+     */
+    @Check
+    public void checkFloorContainsCombatRoom(Floor floor) {
+        boolean hasCombatRoom = false;
+
+        // Search for at least one COMBAT room on the floor
+        for (Room room : floor.getRooms()) {
+            if (room.getType() == RoomTypes.COMBAT) {
+                hasCombatRoom = true;
+                break; // Found one, no need to continue searching
+            }
+        }
+
+        // Generate warning if no combat room found (and floor is not empty)
+        if (!hasCombatRoom && !floor.getRooms().isEmpty()) {
+            // Use warning() instead of error() as this is a design guideline, not a hard
+            // rule
+            warning("Each floor should contain at least one COMBAT room",
+                    floor, DungeonDSLPackage.Literals.FLOOR__ROOMS, FLOOR_REQUIRES_COMBAT);
+        }
+    }
 }
