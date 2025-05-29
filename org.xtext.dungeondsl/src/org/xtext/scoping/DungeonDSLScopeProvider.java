@@ -4,8 +4,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.eclipse.emf.ecore.EClass;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EReference;
+import org.eclipse.xtext.resource.EObjectDescription;
 import org.eclipse.xtext.resource.IEObjectDescription;
 import org.eclipse.xtext.scoping.IScope;
 import org.eclipse.xtext.scoping.Scopes;
@@ -17,6 +19,7 @@ import org.xtext.dungeonDSL.Model;
 import org.xtext.dungeonDSL.ModularElement;
 import org.xtext.dungeonDSL.Trap;
 import org.xtext.dungeonDSL.NPC;
+import org.xtext.dungeonDSL.Dungeon;
 import org.xtext.dungeonDSL.DungeonDSLPackage;
 
 import org.eclipse.xtext.scoping.impl.SimpleScope;
@@ -25,6 +28,7 @@ import org.eclipse.xtext.resource.IResourceDescription;
 import com.google.inject.Inject;
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.xtext.EcoreUtil2;
+import org.eclipse.xtext.naming.QualifiedName;
 
 import com.google.common.collect.Iterables;
 /**
@@ -40,78 +44,96 @@ public class DungeonDSLScopeProvider extends AbstractDungeonDSLScopeProvider {
 
     @Override
     public IScope getScope(EObject context, EReference reference) {
-        if (reference == DungeonDSLPackage.Literals.ROOM__CONNECTIONS) {
+        if (reference == DungeonDSLPackage.Literals.ROOM__CONNECTIONS || 
+            reference.getEReferenceType() == DungeonDSLPackage.Literals.ROOM ||
+            reference.getEReferenceType() == DungeonDSLPackage.Literals.TRAP ||
+            reference.getEReferenceType() == DungeonDSLPackage.Literals.NPC) {
+            
             Model currentModel = EcoreUtil2.getContainerOfType(context, Model.class);
             if (currentModel == null) {
                 return super.getScope(context, reference);
             }
 
             List<IEObjectDescription> visibleObjects = new ArrayList<>();
-
-            // 1. Add all Rooms defined within the current file
-            // First, check if there's a main Dungeon and add its Rooms
-            if (currentModel.getDungeon() != null) {
-                for (Floor floor : currentModel.getDungeon().getFloors()) {
-                    for (IEObjectDescription roomDesc : Scopes.scopedElementsFor(floor.getRooms())) {
-                        visibleObjects.add(roomDesc);
-                    }
-                }
-            }
-
-            // Then, add rooms from top-level ModularElements
+            
+            // Add local elements first
             for (ModularElement element : currentModel.getElements()) {
-                if (element instanceof Floor) {
-                    Floor f = (Floor) element;
-                    for (IEObjectDescription roomDesc : Scopes.scopedElementsFor(f.getRooms())) {
-                        visibleObjects.add(roomDesc);
-                    }
-                } else if (element instanceof Room) {
-                    Iterables.addAll(visibleObjects, Scopes.scopedElementsFor(Collections.singletonList((Room) element)));
-                } 
-                if (element instanceof Trap) {
-                    Iterables.addAll(visibleObjects, Scopes.scopedElementsFor(Collections.singletonList((Trap) element)));
-                }
-                if (element instanceof NPC) {
-                    Iterables.addAll(visibleObjects, Scopes.scopedElementsFor(Collections.singletonList((NPC) element)));
+                // Add if the element is the type we're looking for
+                if (isElementOfRightType(element, reference)) {
+                    visibleObjects.add(EObjectDescription.create(QualifiedName.create(element.getName()), element));
                 }
             }
-
-            // 2. Process import statements - now handling specific imports
+            
+            Dungeon currentDungeon = currentModel.getDungeon();
+            
+            if (currentDungeon != null) {
+                for (Floor floor : currentDungeon.getFloors()) {
+                    for (Room room : floor.getRooms()) {
+                        if (reference == DungeonDSLPackage.Literals.ROOM__CONNECTIONS ||
+                            reference.getEReferenceType() == DungeonDSLPackage.Literals.ROOM) {
+                            visibleObjects.add(EObjectDescription.create(QualifiedName.create(room.getName()), room));
+                        }
+                    }
+                }
+            }
+            
+            // Process import statements
             for (ImportStatement importStatement : currentModel.getImports()) {
-                String importURIString = importStatement.getImportURI();
+                String importURIString;
                 
-                // Skip if no URI is provided
+                if (importStatement.getSpecificImports() != null) {
+                    importURIString = importStatement.getSpecificImports().getImportURI();
+                } else {
+                    importURIString = importStatement.getImportURI();
+                }
+                
                 if (importURIString == null || importURIString.isEmpty()) {
                     continue;
                 }
-
-                URI resolvedImportURI = resolveImportURI(context, importURIString);
-                if (resolvedImportURI == null) continue;
+                
+                // Properly resolve the URI against the current resource
+                URI currentResourceURI = context.eResource().getURI();
+                URI baseURI = currentResourceURI.trimSegments(1);
+                URI resolvedImportURI = URI.createURI(importURIString).resolve(baseURI);
                 
                 IResourceDescription importedDesc = resourceDescriptions.getResourceDescription(resolvedImportURI);
                 if (importedDesc == null) continue;
-
-                // Handle different import types
+                
+                // Handle specific imports
                 if (importStatement.getSpecificImports() != null) {
-                    // Specific imports - only import referenced elements
                     for (ModularElement specificElement : importStatement.getSpecificImports().getImportedElements()) {
                         String elementName = specificElement.getName();
                         
-                        // Find matching elements in the imported resource
                         for (IEObjectDescription desc : importedDesc.getExportedObjects()) {
                             if (desc.getName().getLastSegment().equals(elementName)) {
-                                visibleObjects.add(desc);
+                                // Check if this element matches the reference type we're looking for
+                                EClass typeToMatch;
+                                if (reference == DungeonDSLPackage.Literals.ROOM__CONNECTIONS) {
+                                    typeToMatch = DungeonDSLPackage.Literals.ROOM;
+                                } else {
+                                    typeToMatch = reference.getEReferenceType();
+                                }
+                                
+                                if (typeToMatch.isSuperTypeOf(desc.getEClass()) ||
+                                    desc.getEClass().isSuperTypeOf(typeToMatch)) {
+                                    visibleObjects.add(desc);
+                                }
                             }
                         }
                     }
                 } else {
-                    // Import all elements from the resource (old behavior)
-                    Iterables.addAll(visibleObjects, importedDesc.getExportedObjectsByType(
-                            DungeonDSLPackage.Literals.ROOM));
-                    Iterables.addAll(visibleObjects, importedDesc.getExportedObjectsByType(
-                            DungeonDSLPackage.Literals.TRAP));
-                    Iterables.addAll(visibleObjects, importedDesc.getExportedObjectsByType(
-                            DungeonDSLPackage.Literals.NPC));
+                    // Regular imports - add all elements of the requested type
+                    if (reference == DungeonDSLPackage.Literals.ROOM__CONNECTIONS || 
+                        reference.getEReferenceType() == DungeonDSLPackage.Literals.ROOM) {
+                        Iterables.addAll(visibleObjects, importedDesc.getExportedObjectsByType(
+                                DungeonDSLPackage.Literals.ROOM));
+                    } else if (reference.getEReferenceType() == DungeonDSLPackage.Literals.TRAP) {
+                        Iterables.addAll(visibleObjects, importedDesc.getExportedObjectsByType(
+                                DungeonDSLPackage.Literals.TRAP));
+                    } else if (reference.getEReferenceType() == DungeonDSLPackage.Literals.NPC) {
+                        Iterables.addAll(visibleObjects, importedDesc.getExportedObjectsByType(
+                                DungeonDSLPackage.Literals.NPC));
+                    }
                 }
             }
 
@@ -120,6 +142,19 @@ public class DungeonDSLScopeProvider extends AbstractDungeonDSLScopeProvider {
 
         // Fallback to default scoping for all other references
         return super.getScope(context, reference);
+    }
+
+    // Helper method to check if an element is of the right type for a reference
+    private boolean isElementOfRightType(ModularElement element, EReference reference) {
+        if (reference == DungeonDSLPackage.Literals.ROOM__CONNECTIONS || 
+            reference.getEReferenceType() == DungeonDSLPackage.Literals.ROOM) {
+            return element instanceof Room;
+        } else if (reference.getEReferenceType() == DungeonDSLPackage.Literals.TRAP) {
+            return element instanceof Trap;
+        } else if (reference.getEReferenceType() == DungeonDSLPackage.Literals.NPC) {
+            return element instanceof NPC;
+        }
+        return false;
     }
 
     // Helper method to resolve import URIs

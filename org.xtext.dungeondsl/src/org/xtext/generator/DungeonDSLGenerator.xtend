@@ -23,6 +23,8 @@ import java.util.HashSet
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.resource.ResourceSet;
+import org.xtext.dungeonDSL.BOOLEAN
+import org.xtext.dungeonDSL.EventTrigger
 
 // Import Random for shuffle
 
@@ -85,20 +87,24 @@ override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorCo
     // Process imports, handling both old-style imports and new specific imports
     for (importStatement : model.imports) {
         if (importStatement.specificImports !== null) {
+        	System.out.println("Import statement" + importStatement.specificImports.importedElements)
             // Handle specific imports - only collect referenced elements
             val importedResource = getImportedResource(importStatement.specificImports.importURI, importStatement)
+            System.out.println('import res' + importedResource.allContents.head)
+            
             if (importedResource !== null) {
                 val importedModel = importedResource.contents.head as Model
                 if (importedModel !== null) {
                     // For each specifically imported element, find it in the imported resource
                     for (specificElement : importStatement.specificImports.importedElements) {
                         val elementName = specificElement.name
-                        
+                        System.out.println('Element name' + elementName)
                         // Search for the named element in the imported model's elements
                         var boolean found = false
 						for (element : importedModel.elements) {
+							System.out.println("Element" + element.name)
 						    if (!found && element.name == elementName) {
-						        if (element instanceof Floor) {
+						        if (element instanceof Floor) {						        	
 						            allFloors.add(element)
 						            allRooms.addAll((element as Floor).rooms)
 						            for (room : (element as Floor).rooms) {
@@ -119,7 +125,8 @@ override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorCo
 						}
 						                        
                         // If not found in elements, check in the dungeon structure
-                       var boolean floorFound = false
+                       if (importedModel.dungeon !== null) {
+                       	var boolean floorFound = false
 						for (floor : importedModel.dungeon.floors) {
 						    if (!floorFound && floor.name == elementName) {
 						        allFloors.add(floor)
@@ -140,6 +147,8 @@ override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorCo
 							    }
 							}
                         }
+                       }
+                       
                     }
                 }
             }
@@ -394,9 +403,9 @@ dung.add_room(«room.name»)
 «FOR trap : allTraps»
 «trap.name» = Dungeon.Trap(
 	name="«trap.name»",
-	trigger=EventTrigger.«trap.trigger»,
-	disarmable=«trap.disarmable»,
-	trigger_chance=«trap.triggerChance»
+	trigger=EventTrigger.«IF trap.trigger === EventTrigger.OPEN_DOOR»OPEN_DOOR«ELSE»STEP_ON«ENDIF»,
+	disarmable=«IF trap.disarmable === BOOLEAN.TRUE»True«ELSE»False«ENDIF»,
+ 	trigger_chance=«trap.triggerChance»
 )
 dung.add_trap(«trap.name»)
 «ENDFOR»
@@ -410,8 +419,6 @@ dung.add_trap(«trap.name»)
 )
 dung.add_npc(«npc.name»)
 «ENDFOR»
-
-// --- Establish Containment and Connections ---
 
 «FOR floor : allFloors»
 	«FOR room : floor.rooms»
@@ -700,6 +707,7 @@ sys.exit()
 			case '+': leftVal + rightVal
 			case '-': leftVal - rightVal
 			case '/': leftVal / rightVal
+			case '*': leftVal * rightVal
 			default: throw new IllegalArgumentException("Unknown operator: " + b.operator)
 		}
 	}
