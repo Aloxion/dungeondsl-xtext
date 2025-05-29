@@ -8,188 +8,435 @@ import org.eclipse.xtext.generator.AbstractGenerator
 import org.eclipse.xtext.generator.IFileSystemAccess2
 import org.eclipse.xtext.generator.IGeneratorContext
 
-import org.xtext.dungeonDSL.Dungeon;
-import org.xtext.dungeonDSL.Floor;
-import org.xtext.dungeonDSL.Room;
-import org.xtext.dungeonDSL.Trap;
-import java.lang.reflect.Array
-import java.util.ArrayList
-import org.eclipse.emf.common.util.EList;
-import org.xtext.dungeonDSL.BinaryOperation
+// Import all relevant model elements from your generated package
+import org.xtext.dungeonDSL.Model
+import org.xtext.dungeonDSL.Floor
+import org.xtext.dungeonDSL.Room
+import org.xtext.dungeonDSL.Trap
+import org.xtext.dungeonDSL.NPC
 import org.xtext.dungeonDSL.NumberLiteral
+import org.xtext.dungeonDSL.BinaryOperation
+
+import java.util.ArrayList
+import java.util.List // Explicit import for List
+import java.util.HashSet
+import org.eclipse.emf.common.util.URI;
+import org.eclipse.emf.ecore.EObject;
+import org.eclipse.emf.ecore.resource.ResourceSet;
+
+// Import Random for shuffle
 
 /**
  * Generates code from your model files on save.
- * 
+ *
  * See https://www.eclipse.org/Xtext/documentation/303_runtime_concepts.html#code-generation
  */
 class DungeonDSLGenerator extends AbstractGenerator {
 
-	override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorContext context) {
-        
-        val dungeon = resource.allContents.toIterable.filter(Dungeon).head
-        
-        
-        if (dungeon !== null) {
-            // Generate JSON file with same name as the dungeon
-            val fileName = dungeon.name + ".py"
-            fsa.generateFile(fileName, generateDungeon(dungeon))
+override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorContext context) {
+    // Get the root element of the parsed model, which is now 'Model'
+    val model = resource.contents.head as Model // Cast the head element to Model
+
+    if (model === null) {
+        // Handle cases where the resource is empty or doesn't contain a Model
+        return
+    }
+
+    // Collect ALL relevant elements from the model and its imports
+    // Xtext's linking resolves cross-references, so we need to collect all
+    // potential targets (Rooms, Traps, NPCs) that might be referenced.
+    val List<Room> allRooms = new ArrayList<Room>()
+    val List<Floor> allFloors = new ArrayList<Floor>()
+    val List<Trap> allTraps = new ArrayList<Trap>()
+    val List<NPC> allNPCs = new ArrayList<NPC>()
+
+    // Collect elements from the main file's Model
+    if (model.dungeon !== null) {
+        allFloors.addAll(model.dungeon.floors)
+        for(floor : model.dungeon.floors) {
+            allRooms.addAll(floor.rooms)
+            for(room : floor.rooms) {
+                allTraps.addAll(room.traps)
+                allNPCs.addAll(room.npcs)
+            }
         }
-        
+    }
+
+    // Collect elements from top-level ModularElements in the main file
+    for(element : model.elements) {
+        if(element instanceof Floor) {
+            allFloors.add(element as Floor)
+            for(room : (element as Floor).rooms) {
+                allRooms.add(room)
+                allTraps.addAll(room.traps)
+                allNPCs.addAll(room.npcs)
+            }
+        } else if (element instanceof Room) {
+            allRooms.add(element as Room)
+            allTraps.addAll((element as Room).traps)
+            allNPCs.addAll((element as Room).npcs)
+        } else if (element instanceof Trap) {
+            allTraps.add(element as Trap)
+        } else if (element instanceof NPC) {
+            allNPCs.add(element as NPC)
+        }
+    }
+
+    // Process imports, handling both old-style imports and new specific imports
+    for (importStatement : model.imports) {
+        if (importStatement.specificImports !== null) {
+            // Handle specific imports - only collect referenced elements
+            val importedResource = getImportedResource(importStatement.specificImports.importURI, importStatement)
+            if (importedResource !== null) {
+                val importedModel = importedResource.contents.head as Model
+                if (importedModel !== null) {
+                    // For each specifically imported element, find it in the imported resource
+                    for (specificElement : importStatement.specificImports.importedElements) {
+                        val elementName = specificElement.name
+                        
+                        // Search for the named element in the imported model's elements
+                        var boolean found = false
+						for (element : importedModel.elements) {
+						    if (!found && element.name == elementName) {
+						        if (element instanceof Floor) {
+						            allFloors.add(element)
+						            allRooms.addAll((element as Floor).rooms)
+						            for (room : (element as Floor).rooms) {
+						                allTraps.addAll(room.traps)
+						                allNPCs.addAll(room.npcs)
+						            }
+						        } else if (element instanceof Room) {
+						            allRooms.add(element)
+						            allTraps.addAll((element as Room).traps)
+						            allNPCs.addAll((element as Room).npcs)
+						        } else if (element instanceof Trap) {
+						            allTraps.add(element)
+						        } else if (element instanceof NPC) {
+						            allNPCs.add(element)
+						        }
+						        found = true
+						    }
+						}
+						                        
+                        // If not found in elements, check in the dungeon structure
+                       var boolean floorFound = false
+						for (floor : importedModel.dungeon.floors) {
+						    if (!floorFound && floor.name == elementName) {
+						        allFloors.add(floor)
+						        allRooms.addAll(floor.rooms)
+						        for (room : floor.rooms) {
+						            allTraps.addAll(room.traps)
+						            allNPCs.addAll(room.npcs)
+						        }
+						        floorFound = true
+						    }
+							var boolean roomFound = false
+							for (room : floor.rooms) {
+							    if (!roomFound && room.name == elementName) {
+							        allRooms.add(room)
+							        allTraps.addAll(room.traps)
+							        allNPCs.addAll(room.npcs)
+							        roomFound = true
+							    }
+							}
+                        }
+                    }
+                }
+            }
+        } else if (importStatement.importURI !== null) {
+            // Original whole-file import logic
+            val importedResource = getImportedResource(importStatement.importURI, importStatement)
+            if (importedResource !== null) {
+                val importedModel = importedResource.contents.head as Model
+                if (importedModel !== null) {
+                    // Add all elements from the imported resource
+                    if (importedModel.dungeon !== null) {
+                        allFloors.addAll(importedModel.dungeon.floors)
+                        for (floor : importedModel.dungeon.floors) {
+                            allRooms.addAll(floor.rooms)
+                            for (room : floor.rooms) {
+                                allTraps.addAll(room.traps)
+                                allNPCs.addAll(room.npcs)
+                            }
+                        }
+                    }
+                    
+                    for (element : importedModel.elements) {
+                        if (element instanceof Floor) {
+                            allFloors.add(element)
+                            for (room : (element as Floor).rooms) {
+                                allRooms.add(room)
+                                allTraps.addAll(room.traps)
+                                allNPCs.addAll(room.npcs)
+                            }
+                        } else if (element instanceof Room) {
+                            allRooms.add(element)
+                            allTraps.addAll((element as Room).traps)
+                            allNPCs.addAll((element as Room).npcs)
+                        } else if (element instanceof Trap) {
+                            allTraps.add(element)
+                        } else if (element instanceof NPC) {
+                            allNPCs.add(element)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // For now, let's ensure our lists contain unique elements if there's overlap
+    // (e.g., a Room is defined top-level and also within a Floor).
+    // Using Sets and converting back to Lists is a simple way to get unique elements.
+    val uniqueRooms = new ArrayList<Room>(new HashSet(allRooms))
+    val uniqueFloors = new ArrayList<Floor>(new HashSet(allFloors))
+    val uniqueTraps = new ArrayList<Trap>(new HashSet(allTraps))
+    val uniqueNPCs = new ArrayList<NPC>(new HashSet(allNPCs))
+
+    // Define the output file name. We'll generate a Python file based on the input file name.
+    // If there's a main dungeon, use its name. Otherwise, use the file name.
+    val fileName = if (model.dungeon !== null) model.dungeon.name + ".py" else resource.URI.lastSegment.replace(".dung", ".py")
+
+    // Generate the Python file, passing the collected lists
+    fsa.generateFile(fileName, generateDungeonPython(model, uniqueFloors, uniqueRooms, uniqueTraps, uniqueNPCs))
+}
+
+// Helper method to resolve imports
+def private Resource getImportedResource(String importUri, EObject context) {
+    if (importUri === null || importUri.isEmpty) {
+        return null
     }
     
-	def generateDungeon(Dungeon dungeon) '''
+    try {
+        // Get the containing resource
+        val Resource containerResource = context.eResource
+        if (containerResource === null || containerResource.getURI === null) {
+            return null
+        }
+        
+        // Resolve import URI against the container's URI
+        val URI baseUri = containerResource.getURI.trimSegments(1)
+        val URI resolvedUri = URI.createURI(importUri).resolve(baseUri)
+        
+        // Load the resource using the resource set
+        val ResourceSet rs = context.eResource.resourceSet
+        if (rs !== null) {
+            try {
+                return rs.getResource(resolvedUri, true)
+            } catch (Exception e) {
+                System.err.println("Error loading imported resource: " + e.message)
+                return null
+            }
+        }
+    } catch (Exception e) {
+        System.err.println("Error resolving import URI: " + e.message)
+    }
+    
+    return null
+}
+
+
+	// Modified template to accept the collected lists
+	def generateDungeonPython(Model model, List<Floor> allFloors, List<Room> allRooms, List<Trap> allTraps, List<NPC> allNPCs) '''
 # usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """
-Generated Dungeon: «escape(dungeon.name)»
-Theme: «escape(dungeon.theme)»
-"""	 
+Generated Dungeon
+«IF model.dungeon !== null»
+Name: «escape(model.dungeon.name)»
+Theme: «escape(model.dungeon.theme)»
+Level: «model.dungeon.lvl»
+«ENDIF»
+"""
 import pygame
 from enum import Enum
 from typing import List, Optional
 import random
+import sys
+import math # Import math for ceil and sqrt
 
 
 class Sizes(Enum):
-    LARGE = "LARGE"
-    MEDIUM = "MEDIUM"
-    SMALL = "SMALL"
+	LARGE = "LARGE"
+	MEDIUM = "MEDIUM"
+	SMALL = "SMALL"
 
 
 class RoomTypes(Enum):
-    COMBAT = "COMBAT"
-    TREASURE = "TREASURE"
-    BOSS = "BOSS"
-    PUZZLE = "PUZZLE"
-    SHOP = "SHOP"
+	COMBAT = "COMBAT"
+	TREASURE = "TREASURE"
+	BOSS = "BOSS"
+	PUZZLE = "PUZZLE"
+	SHOP = "SHOP"
 
 
 class EventTrigger(Enum):
-    STEP_ON = "stepOn"
-    OPEN_DOOR = "openDoor"
+	STEP_ON = "stepOn"
+	OPEN_DOOR = "openDoor"
 
 
 class Behaviour(Enum):
-    AGGRESSIVE = "AGGRESSIVE"
-    NEUTRAL = "NEUTRAL"
+	AGGRESSIVE = "AGGRESSIVE"
+	NEUTRAL = "NEUTRAL"
 
 
 class NPCType(Enum):
-    MERCHANT = "MERCHANT"
-    ENEMY = "ENEMY"
-    NORMAL = "NORMAL"
+	MERCHANT = "MERCHANT"
+	ENEMY = "ENEMY"
+	NORMAL = "NORMAL"
 
 
 class Dungeon:
-    def __init__(self, name: str, theme: str, lvl: int):
-        self.name = name
-        self.theme = theme
-        self.lvl = lvl
-        self.floors: List[Dungeon.Floor] = []
+	def __init__(self, name: str, theme: str, lvl: int):
+		self.name = name
+		self.theme = theme
+		self.lvl = lvl
+		self.floors: List["Dungeon.Floor"] = []
+		self.rooms: List["Dungeon.Room"] = []
+		self.traps: List["Dungeon.Trap"] = []
+		self.npcs: List["Dungeon.NPC"] = []
+		self.room_map = {}
 
-    def add_floor(self, floor):
-        self.floors.append(floor)
 
-    class Floor:
-        def __init__(self, name: str):
-            self.name = name
-            self.rooms: List[Dungeon.Room] = []
+	def add_floor(self, floor):
+		self.floors.append(floor)
 
-        def add_room(self, room):
-            self.rooms.append(room)
+	def add_room(self, room):
+		self.rooms.append(room)
+		self.room_map[room.name] = room
 
-        def get_room_by_name(self, name: str) -> Optional["Dungeon.Room"]:
-            for room in self.rooms:
-                if room.name == name:
-                    return room
-            return None
+	def add_trap(self, trap):
+		self.traps.append(trap)
 
-    class Room:
-        def __init__(
-            self,
-            name: str,
-            size: Sizes,
-            room_type: RoomTypes,
-            floor_id: str,
-        ):
-            self.name = name
-            self.size = size
-            self.room_type = room_type
-            self.floor_id = floor_id
-            self.connections = []
-            self.traps: List[Dungeon.Trap] = []
-            self.npcs: List[Dungeon.NPC] = []
+	def add_npc(self, npc):
+		self.npcs.append(npc)
 
-        def add_trap(self, trap):
-            self.traps.append(trap)
+	def get_room_by_name(self, name: str) -> Optional["Dungeon.Room"]:
+		return self.room_map.get(name)
 
-        def set_connections(self, connections):
-            self.connections = connections
-		
-        def add_npc(self, npc):
-            self.npcs.append(npc)
 
-    class Trap:
-        def __init__(
-            self,
-            name: str,
-            trigger: EventTrigger,
-            disarmable: bool,
-            trigger_chance: int,
-        ):
-            self.name = name
-            self.trigger = trigger
-            self.disarmable = disarmable
-            self.trigger_chance = trigger_chance
+	class Floor:
+		def __init__(self, name: str):
+			self.name = name
+			self.rooms: List["Dungeon.Room"] = []
 
-    class NPC:
-        def __init__(
-            self, name: str, behaviour: Behaviour, npc_type: NPCType, health: int
-        ):
-            self.name = name
-            self.behaviour = behaviour
-            self.npc_type = npc_type
-            self.health = health
+		def add_room(self, room):
+			self.rooms.append(room)
 
-dung = Dungeon("«escape(dungeon.name)»", "«escape(dungeon.theme)»", «dungeon.lvl»)
 
-«FOR floor : dungeon.floors»
+	class Room:
+		def __init__(
+			self,
+			name: str,
+			size: Sizes,
+			room_type: RoomTypes,
+		):
+			self.name = name
+			self.size = size
+			self.room_type = room_type
+			self.connections: List["Dungeon.Room"] = []
+			self.traps: List["Dungeon.Trap"] = []
+			self.npcs: List["Dungeon.NPC"] = []
+			self.floor: Optional["Dungeon.Floor"] = None
+
+		def add_trap(self, trap):
+			self.traps.append(trap)
+
+		def add_connection(self, room):
+			if room not in self.connections:
+				self.connections.append(room)
+
+		def add_npc(self, npc):
+			self.npcs.append(npc)
+
+	class Trap:
+		def __init__(
+			self,
+			name: str,
+			trigger: EventTrigger,
+			disarmable: bool,
+			trigger_chance: int,
+		):
+			self.name = name
+			self.trigger = trigger
+			self.disarmable = disarmable
+			self.trigger_chance = trigger_chance
+
+	class NPC:
+		def __init__(
+			self, name: str, behaviour: Behaviour, npc_type: NPCType, health: int
+		):
+			self.name = name
+			self.behaviour = behaviour
+			self.npc_type = npc_type
+			self.health = health
+
+«IF model.dungeon !== null»
+dung = Dungeon("«escape(model.dungeon.name)»", "«escape(model.dungeon.theme)»", «model.dungeon.lvl»)
+«ELSE»
+dung = Dungeon("Generated Dungeon", "Generic Theme", 1)
+«ENDIF»
+
+«FOR floor : allFloors»
 «floor.name» = Dungeon.Floor("«floor.name»")
 dung.add_floor(«floor.name»)
+«ENDFOR»
+
+«FOR room : allRooms»
+«room.name» = Dungeon.Room(
+	name="«room.name»",
+	size=Sizes.«room.size»,
+	room_type=RoomTypes.«room.type»,
+)
+dung.add_room(«room.name»)
+«ENDFOR»
+
+«FOR trap : allTraps»
+«trap.name» = Dungeon.Trap(
+	name="«trap.name»",
+	trigger=EventTrigger.«trap.trigger»,
+	disarmable=«trap.disarmable»,
+	trigger_chance=«trap.triggerChance»
+)
+dung.add_trap(«trap.name»)
+«ENDFOR»
+
+«FOR npc : allNPCs»
+«npc.name» = Dungeon.NPC(
+	name="«npc.name»",
+	behaviour=Behaviour.«npc.behaviour»,
+	npc_type=NPCType.«npc.type»,
+	health=«evaluate(npc.baseHealth)»
+)
+dung.add_npc(«npc.name»)
+«ENDFOR»
+
+// --- Establish Containment and Connections ---
+
+«FOR floor : allFloors»
 	«FOR room : floor.rooms»
-
-«room.name»_«floor.name» = Dungeon.Room(
-	     name="«room.name»",
-	     size=Sizes.«room.size»,
-	     room_type=RoomTypes.«room.type»,
-	     floor_id=«floor.name»,
-	)
-«FOR npc : room.npcs»
-«npc.name»_«room.name» = Dungeon.NPC(
-		name="«npc.name»",
-		behaviour=Behaviour.«npc.behaviour»,
-		npc_type=NPCType.«npc.type»,
-		health=«evaluate(npc.baseHealth)»
-)
-«room.name»_«floor.name».add_npc(«npc.name»_«room.name»)
-«ENDFOR»
-
-    «ENDFOR»
-«ENDFOR»
-«FOR floor : dungeon.floors»
-    «FOR room : floor.rooms»
-«floor.name».add_room(«room.name»_«floor.name»)
-«room.name»_«floor.name».set_connections([
-	«FOR connection : room.connections SEPARATOR ','»
-«getConnectedRoomName(connection, floor, dungeon.floors)»
-	«ENDFOR»
-]
-)
+«floor.name».add_room(«room.name»)
+«room.name».floor = «floor.name»
 	«ENDFOR»
 «ENDFOR»
 
+«FOR room : allRooms»
+	«FOR trap : room.traps»
+«room.name».add_trap(«trap.name»)
+	«ENDFOR»
+	«FOR npc : room.npcs»
+«room.name».add_npc(«npc.name»)
+	«ENDFOR»
+«ENDFOR»
+«FOR room : allRooms»
+	«FOR Room connectedRoom : room.connections»
+		«IF connectedRoom !== null»
+«room.name».add_connection(«connectedRoom.name»)
+		«ELSE»
+# WARNING: Could not find room with name "«connectedRoom.name»" for connection from "«room.name»"
+		«ENDIF»
+	«ENDFOR»
+«ENDFOR»
 
 
 # Pygame visualization
@@ -206,318 +453,266 @@ WIDTH, HEIGHT = 1920, 1020
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Dungeon Visualization")
 
-biggestWidth = max(len(room.name) for room in dung.floors[0].rooms) * 7.5
+# Calculate biggestWidth based on all rooms
+biggestWidth = 0
+«IF !allRooms.empty»
+biggestWidth = max(len(room.name) for room in dung.rooms) * 7.5
+«ELSE»
+biggestWidth = 50 # Default if no rooms
+«ENDIF»
 
 
 def sort_rooms_by_connections(rooms):
-    room_tree = {}
-    roomsHandled = []
-    sorted_rooms = sorted(rooms, key=lambda x: len(x.connections), reverse=True)
-
-    for firstRoom in sorted_rooms:
-        if firstRoom.name not in room_tree and firstRoom.name not in roomsHandled:
-            room_tree[firstRoom.name] = firstRoom.connections
-            roomsHandled.append(firstRoom.name)
-            for connectedRoom in firstRoom.connections:
-                roomsHandled.append(connectedRoom.name)
-            continue
-
-    return room_tree
+	return sorted(rooms, key=lambda x: len(x.connections), reverse=True)
 
 
 def generate_room_positions(rooms):
-    room_positions = {}
-    center_x = WIDTH // 2
-    center_y = HEIGHT // 2
-    x_increment = biggestWidth * 1.2
-    y_increment = biggestWidth * 1.2
+	room_positions = {}
+	center_x = WIDTH // 2
+	center_y = HEIGHT // 2
+	x_increment = biggestWidth * 1.5
+	y_increment = biggestWidth * 1.5
 
-    # Create a grid
-    grid_width = WIDTH // int(x_increment) + 1
-    grid_height = HEIGHT // int(y_increment) + 1
-    grid = [[0 for _ in range(grid_height)] for _ in range(grid_width)]
+	num_rooms = len(rooms)
+	estimated_grid_size = math.ceil(math.sqrt(num_rooms))
+	grid_width = int(estimated_grid_size) + 2
+	grid_height = int(estimated_grid_size) + 2
 
-    def get_grid_coords(x, y):
-        grid_x = int(x // x_increment)
-        grid_y = int(y // y_increment)
-        return grid_x, grid_y
+	grid = [[0 for _ in range(grid_height)] for _ in range(grid_width)]
 
-    def is_grid_available(x, y):
-        grid_x, grid_y = get_grid_coords(x, y)
-        if 0 <= grid_x < grid_width and 0 <= grid_y < grid_height:
-            return grid[grid_x][grid_y] == 0
-        return False
+	def get_grid_coords(x, y):
+		grid_x = int((x - (center_x - (grid_width/2 * x_increment))) / x_increment)
+		grid_y = int((y - (center_y - (grid_height/2 * y_increment))) / y_increment)
+		return grid_x, grid_y
 
-    def mark_grid_used(x, y):
-        grid_x, grid_y = get_grid_coords(x, y)
-        if 0 <= grid_x < grid_width and 0 <= grid_y < grid_height:
-            grid[grid_x][grid_y] = 1
+	def is_grid_available(x, y):
+		grid_x, grid_y = get_grid_coords(x, y)
+		if 0 <= grid_x < grid_width and 0 <= grid_y < grid_height:
+			return grid[grid_x][grid_y] == 0
+		return False
 
-    first_room = rooms[0]
-    room_positions[first_room.name] = (center_x, center_y)
-    mark_grid_used(center_x, center_y)
+	def mark_grid_used(x, y):
+		grid_x, grid_y = get_grid_coords(x, y)
+		if 0 <= grid_x < grid_width and 0 <= grid_y < grid_height:
+			grid[grid_x][grid_y] = 1
 
-    rooms_to_place = [(first_room, center_x, center_y)]
-    placed_rooms = {first_room.name}
+	first_room = None
+	if rooms:
+		first_room = rooms[0]
+	else:
+		return room_positions
 
-    while rooms_to_place:
-        current_room, current_x, current_y = rooms_to_place.pop(0)
-        connections = current_room.connections
-    
+	room_positions[first_room.name] = (center_x, center_y)
+	mark_grid_used(center_x, center_y)
 
-        directions = {
-            "top": (0, -y_increment),
-            "bottom": (0, y_increment),
-            "left": (-x_increment, 0),
-            "right": (x_increment, 0),
-        }
-        opposite_directions = {
-            "top": "bottom",
-            "bottom": "top",
-            "left": "right",
-            "right": "left",
-        }
+	rooms_to_place = [(first_room, center_x, center_y)]
+	placed_rooms = {first_room.name}
 
-        available_directions = list(directions.keys())
-        random.shuffle(available_directions)
+	while rooms_to_place:
+		current_room, current_x, current_y = rooms_to_place.pop(0)
+		connections = current_room.connections
 
-        for connected_room in connections:
-            if connected_room not in rooms:
-                continue
-            if connected_room.name not in placed_rooms:
-                chosen_direction = None
-                for direction_name in available_directions:
-                    dx, dy = directions[direction_name]
-                    new_x, new_y = current_x + dx, current_y + dy
-                    if is_grid_available(new_x, new_y):
-                        chosen_direction = direction_name
-                        break
+		directions = {
+			"top": (0, -y_increment),
+			"bottom": (0, y_increment),
+			"left": (-x_increment, 0),
+			"right": (x_increment, 0),
+		}
+		available_directions = list(directions.keys())
+		random.shuffle(available_directions)
 
-                if chosen_direction is None:
-                    for direction_name in available_directions:
-                        dx, dy = directions[direction_name]
-                        new_x, new_y = current_x + dx, current_y + dy
-                        if (
-                            is_grid_available(new_x, new_y)
-                            and opposite_directions[direction_name]
-                        ):
-                            chosen_direction = direction_name
-                            break
+		for connected_room in connections:
+			if connected_room.name not in placed_rooms:
+				chosen_direction = None
+				for direction_name in available_directions:
+					dx, dy = directions[direction_name]
+					new_x, new_y = current_x + dx, current_y + dy
+					if is_grid_available(new_x, new_y):
+						chosen_direction = direction_name
+						break
 
-                if chosen_direction is None:
-                    print(
-                        f"Could not find a valid position for {connected_room.name}, skipping."
-                    )
-                    continue
+				if chosen_direction is None:
+					for direction_name in available_directions:
+						dx, dy = directions[direction_name]
+						new_x, new_y = current_x + dx, current_y + dy
+						if (
+							0 <= int((new_x - (center_x - (grid_width/2 * x_increment))) / x_increment) < grid_width and
+							0 <= int((new_y - (center_y - (grid_height/2 * y_increment))) / y_increment) < grid_height
+						):
+							chosen_direction = direction_name
+							break
 
-                dx, dy = directions[chosen_direction]
-                new_x, new_y = current_x + dx, current_y + dy
-                room_positions[connected_room.name] = (new_x, new_y)
-                mark_grid_used(new_x, new_y)
-                rooms_to_place.append((connected_room, new_x, new_y))
-                placed_rooms.add(connected_room.name)
-                available_directions.remove(chosen_direction)
+				if chosen_direction is None:
+					print(
+						f"Could not find a valid position for {connected_room.name}, skipping."
+					)
+					continue
 
-    return room_positions
+				dx, dy = directions[chosen_direction]
+				new_x, new_y = current_x + dx, current_y + dy
+				room_positions[connected_room.name] = (new_x, new_y)
+				mark_grid_used(new_x, new_y)
+				rooms_to_place.append((connected_room, new_x, new_y))
+				placed_rooms.add(connected_room.name)
+
+	return room_positions
 
 
-# Replace the outer loop structure with this modified version
-currentFloor = dung.floors[0]
-current_room = currentFloor.rooms[0]
+# --- Pygame Main Loop ---
+
+all_room_positions = generate_room_positions(dung.rooms) # Pass dung.rooms to generate positions for all rooms
+all_room_rects = {}
+
+for room_name, position in all_room_positions.items():
+	width = biggestWidth
+	size = biggestWidth
+	all_room_rects[room_name] = pygame.Rect(
+		position[0] - width // 2, position[1] - size // 2, width, size
+	)
+
+
+current_room = None
+if dung.rooms:
+	current_room = dung.rooms[0]
+else:
+	sys.exit()
+
+
 rooms_visited = {current_room}
-undiscovered_rooms = {conn for conn in currentFloor.rooms[0].connections}
+undiscovered_rooms = {conn.name for conn in current_room.connections}
+
 running = True
-# Generate room positions for each floor once at the beginning
-floor_room_positions = {}
-floor_room_rects = {}
-for floor in dung.floors:
-    floor_room_positions[floor.name] = generate_room_positions(floor.rooms)
-
-    # Create room rectangles for each floor
-    room_rects = {}
-    for room_name, position in floor_room_positions[floor.name].items():
-        print(f"Room: {room_name}, Position: {position}")
-        width = biggestWidth
-        size = biggestWidth
-        room_rects[room_name] = pygame.Rect(
-            position[0] - width // 2, position[1] - size // 2, width, size
-        )
-    floor_room_rects[floor.name] = room_rects
-
 button_rect = None
 
 while running:
-    # Use cached room positions and rectangles for current floor
-    room_positions = floor_room_positions[currentFloor.name]
-    room_rects = floor_room_rects[currentFloor.name]
-    
-    # Process events BEFORE rendering
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-            break
-            
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            # Check room clicks
-            for room_name, rect in room_rects.items():
-                if rect.collidepoint(event.pos):
-                    print("Collided with room rect")
-                    room = currentFloor.get_room_by_name(room_name)
-                    current_room = room
-                    if current_room not in rooms_visited:
-                        rooms_visited.add(current_room)
-                    
-                    print(f"Clicked on room: {room.name}")       
-                           
-                    for connected_room in room.connections:
-                        if connected_room not in rooms_visited:
-                            undiscovered_rooms.add(connected_room)
-                    break
-                    
-            # Check for floor transition button click
-            if button_rect and button_rect.collidepoint(event.pos):
-                # Find the destination floor and room
-                for other_floor in dung.floors:
-                    if other_floor != currentFloor:
-                        for room in other_floor.rooms:
-                            for connected_room in room.connections:
-                                if connected_room == current_room:
-                                    currentFloor = other_floor
-                                    current_room = currentFloor.rooms[0]
-                                    rooms_visited = {current_room}
-                                    undiscovered_rooms = {conn for conn in current_room.connections}
-                                    
-                                    room_positions = floor_room_positions[currentFloor.name]
-                                    room_rects = floor_room_rects[currentFloor.name]
-                                    break
-    
-    # Clear screen
-    screen.fill(color=BLACK)
-    
-    # Draw floor transition button
-    current_room_obj = current_room
-    if current_room_obj:
-        for other_floor in dung.floors:
-            if other_floor != currentFloor:
-                for room in other_floor.rooms:
-                    for connected_room in room.connections:
-                        if connected_room == current_room:
-                            button_width, button_height = 150, 50
-                            button_x = WIDTH - button_width - 20
-                            button_y = HEIGHT - button_height - 20
-                            button_rect = pygame.Rect(button_x, button_y, button_width, button_height)
-                            pygame.draw.rect(screen, BLUE, button_rect, border_radius=5)
-                            font = pygame.font.Font(None, 24)
-                            text = font.render("Move to Floor", True, WHITE)
-                            text_rect = text.get_rect(center=button_rect.center)
-                            screen.blit(text, text_rect)
-    
-    # Draw connections
-    for room in currentFloor.rooms:
-        if room == current_room or room in rooms_visited:
-            for connected_room in room.connections:
-                if connected_room.name in room_positions and connected_room in currentFloor.rooms:
-                    pygame.draw.line(
-                        screen,
-                        CUSTOM,
-                        room_positions[room.name],
-                        room_positions[connected_room.name],
-                        2,
-                    )
+	for event in pygame.event.get():
+		if event.type == pygame.QUIT:
+			running = False
+			break
 
-    # Draw rooms
-    for room_name, position in room_positions.items():
-        room = currentFloor.get_room_by_name(room_name)
-        if room not in undiscovered_rooms and room not in rooms_visited:
-            continue
+		if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+			for room_name, rect in all_room_rects.items():
+				if rect.collidepoint(event.pos):
+					print("Collided with room rect")
+					clicked_room = dung.get_room_by_name(room_name)
+					if clicked_room is not None:
+						current_room = clicked_room
+						if current_room not in rooms_visited:
+							rooms_visited.add(current_room)
 
-        if room in rooms_visited:
-            color = RED if room.room_type == RoomTypes.BOSS else CUSTOM
-        else:
-            color = WHITE
-        if room == current_room:
-            color = RED if room.room_type == RoomTypes.BOSS else GREEN
-            
-        width = biggestWidth
-        size = biggestWidth
-        pygame.draw.rect(
-            screen,
-            color,
-            (position[0] - width // 2, position[1] - size // 2, width, size),
-            border_radius=10,
-        )
-        
-        font = pygame.font.Font(None, 16)
-        if room in rooms_visited:
-            text = font.render(room.name, True, BLACK)
-        else:
-            text = font.render("?", True, BLACK)  # Show "?" if not visited
-        text_rect = text.get_rect(center=position)
-        screen.blit(text, text_rect)
+						print(f"Clicked on room: {current_room.name}")
 
-    # Update display
-    pygame.display.flip()
+						undiscovered_rooms.clear()
+						for visited_r in rooms_visited:
+							for connected_r in visited_r.connections:
+								if connected_r not in rooms_visited:
+									undiscovered_rooms.add(connected_r.name)
+					break # Break after finding and handling the clicked room
+
+			if button_rect is not None and button_rect.collidepoint(event.pos):
+				# Placeholder logic for floor transition
+				print("Floor transition button clicked (placeholder logic)")
+
+
+	screen.fill(color=BLACK)
+
+	show_floor_button = False
+	target_floor = None
+	if current_room is not None:
+		for connected_r in current_room.connections:
+			if connected_r.floor is not None and current_room.floor is not None and connected_r.floor != current_room.floor:
+				show_floor_button = True
+				target_floor = connected_r.floor
+				break
+
+
+	if show_floor_button:
+		button_width, button_height = 150, 50
+		button_x = WIDTH - button_width - 20
+		button_y = HEIGHT - button_height - 20
+		button_rect = pygame.Rect(button_x, button_y, button_width, button_height)
+		pygame.draw.rect(screen, BLUE, button_rect, border_radius=5)
+		font = pygame.font.Font(None, 24)
+		text = font.render("Move to Floor", True, WHITE)
+		text_rect = text.get_rect(center=button_rect.center)
+		screen.blit(text, text_rect)
+	else:
+		button_rect = None
+
+
+	for room in dung.rooms: # Iterate through all rooms in the main dungeon object
+		if room in rooms_visited or room == current_room:
+			for connected_room in room.connections:
+				if all_room_positions.get(room.name) is not None and all_room_positions.get(connected_room.name) is not None:
+					pygame.draw.line(
+						screen,
+						CUSTOM,
+						all_room_positions[room.name],
+						all_room_positions[connected_room.name],
+						2,
+					)
+
+	for room in dung.rooms: # Iterate through all rooms in the main dungeon object
+		if room in rooms_visited or room.name in undiscovered_rooms:
+			position = all_room_positions.get(room.name)
+			if position is None: # Handle cases where room might not have a position
+				continue
+
+			color = WHITE
+			if room in rooms_visited:
+				color = RED if room.room_type == RoomTypes.BOSS else CUSTOM
+			if room == current_room:
+				color = RED if room.room_type == RoomTypes.BOSS else GREEN
+
+			width = biggestWidth
+			size = biggestWidth
+			pygame.draw.rect(
+				screen,
+				color,
+				(position[0] - width // 2, position[1] - size // 2, width, size),
+				border_radius=10,
+			)
+
+			font = pygame.font.Font(None, 16)
+			text_surface = None
+			if room in rooms_visited:
+				text_surface = font.render(room.name, True, BLACK)
+			else:
+				text_surface = font.render("?", True, BLACK)
+			text_rect = text_surface.get_rect(center=position)
+			screen.blit(text_surface, text_rect)
+
+	pygame.display.flip()
 
 pygame.quit()
+sys.exit()
 '''
-//
-//    def generateTrapJson(Trap trap) 
-//        {
-//          "name": "«escape(trap.name)»",
-//          "trigger": "«trap.trigger»",
-//          "disarmable": «trap.disarmable»,
-//          "triggerChance": «trap.triggerChance»
-//        }
-//    '''
-    
-    // Helper method to escape JSON strings
- 
- 	def getConnectedRoomName(String connectedName, Floor currentFloor, EList<Floor> floors) {
- 		
- 		for (room : currentFloor.rooms) {
- 			
- 			if (room.name == connectedName) {
- 				return room.name + '_' + currentFloor.name
- 			}
- 		}
- 		
- 		for (floor : floors) {
- 			
- 			for (room : floor.rooms) {
- 			
- 				if (room.name == connectedName) {
- 					return room.name + '_' + floor.name
- 				}
- 			}
- 		}
- 	}
-    
-    def dispatch int evaluate(NumberLiteral n) {
-    	n.value
+
+	// Helper method to evaluate Expression (remains the same)
+	def dispatch int evaluate(NumberLiteral n) {
+		n.value
 	}
-	
+
 	def dispatch int evaluate(BinaryOperation b) {
-    val leftVal = b.left.evaluate
-    val rightVal = b.right.evaluate
-    switch b.operator {
-        case '+': leftVal + rightVal
-        case '-': leftVal - rightVal
-        case '*': leftVal * rightVal
-        case '/': leftVal / rightVal
-        default: throw new IllegalArgumentException("Unknown operator: " + b.operator)
-    }
-}
-    
-    def escape(String s) {
-        if (s === null) {
-            return ""
-        }
-        
-        return s.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t")
-    }
-     
+		val leftVal = b.left.evaluate
+		val rightVal = b.right.evaluate
+		switch b.operator {
+			case '+': leftVal + rightVal
+			case '-': leftVal - rightVal
+			case '/': leftVal / rightVal
+			default: throw new IllegalArgumentException("Unknown operator: " + b.operator)
+		}
+	}
+
+	// Helper method to escape strings (remains the same)
+	def escape(String s) {
+		if (s === null) {
+			return ""
+		}
+		return s.replace("\\", "\\\\")
+				.replace("\"", "\\\"")
+				.replace("\n", "\\n")
+				.replace("\r", "\\r")
+				.replace("\t", "\\t")
+	}
 }

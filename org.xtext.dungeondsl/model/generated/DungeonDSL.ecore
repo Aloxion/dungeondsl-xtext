@@ -1,6 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" name="dungeonDSL" nsURI="http://www.xtext.org/DungeonDSL" nsPrefix="dungeonDSL">
+  <eClassifiers xsi:type="ecore:EClass" name="Model">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="imports" upperBound="-1"
+        eType="#//ImportStatement" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="dungeon" eType="#//Dungeon"
+        containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="elements" upperBound="-1"
+        eType="#//ModularElement" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ModularElement">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="ImportStatement">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="specificImports" eType="#//SpecificImports"
+        containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="importURI" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="alias" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="SpecificImports">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="importedElements" unique="false"
+        upperBound="-1" eType="#//ModularElement"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="importURI" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+  </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="Dungeon">
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="theme" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
@@ -8,30 +30,26 @@
     <eStructuralFeatures xsi:type="ecore:EReference" name="floors" upperBound="-1"
         eType="#//Floor" containment="true"/>
   </eClassifiers>
-  <eClassifiers xsi:type="ecore:EClass" name="Floor">
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+  <eClassifiers xsi:type="ecore:EClass" name="Floor" eSuperTypes="#//ModularElement">
     <eStructuralFeatures xsi:type="ecore:EReference" name="rooms" upperBound="-1"
         eType="#//Room" containment="true"/>
   </eClassifiers>
-  <eClassifiers xsi:type="ecore:EClass" name="Room">
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+  <eClassifiers xsi:type="ecore:EClass" name="Room" eSuperTypes="#//ModularElement">
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="size" eType="#//Sizes"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="type" eType="#//RoomTypes"/>
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="connections" unique="false"
-        upperBound="-1" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
-    <eStructuralFeatures xsi:type="ecore:EReference" name="traps" upperBound="-1"
-        eType="#//Trap" containment="true"/>
-    <eStructuralFeatures xsi:type="ecore:EReference" name="npcs" upperBound="-1" eType="#//NPC"
-        containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="connections" unique="false"
+        upperBound="-1" eType="#//Room"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="traps" unique="false" upperBound="-1"
+        eType="#//Trap"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="npcs" unique="false" upperBound="-1"
+        eType="#//NPC"/>
   </eClassifiers>
-  <eClassifiers xsi:type="ecore:EClass" name="Trap">
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+  <eClassifiers xsi:type="ecore:EClass" name="Trap" eSuperTypes="#//ModularElement">
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="trigger" eType="#//EventTrigger"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="disarmable" eType="#//BOOLEAN"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="triggerChance" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
   </eClassifiers>
-  <eClassifiers xsi:type="ecore:EClass" name="NPC">
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+  <eClassifiers xsi:type="ecore:EClass" name="NPC" eSuperTypes="#//ModularElement">
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="behaviour" eType="#//Behaviour"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="type" eType="#//NPCType"/>
     <eStructuralFeatures xsi:type="ecore:EReference" name="baseHealth" eType="#//Expression"

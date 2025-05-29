@@ -2,28 +2,59 @@ grammar org.xtext.DungeonDSL with org.eclipse.xtext.common.Terminals
 
 generate dungeonDSL "http://www.xtext.org/DungeonDSL"
 
+// Define the root rule for the model
+Model:
+    (imports+=ImportStatement)* // Allow imports at the very top of the file
+    (dungeon=Dungeon)?            // Optional, but only ONE Dungeon
+    (elements+=ModularElement)* // Multiple other modular elements (Floors, Rooms, Traps, NPCs)
+;
+
+// Define elements that can appear multiple times at the top level (excluding Dungeon)
+// This rule does NOT have 'returns EObject' explicitly, as Xtext infers the common supertype.
+ModularElement:
+    Floor | Room | Trap | NPC
+;
+
+// Rule for import statements, now allowed at the Model level
+// Updated import statement rule
+ImportStatement:
+    'import' (specificImports=SpecificImports | importURI=STRING) ('as' alias=ID)?;
+
+// New rule for specific imports with curly braces
+SpecificImports:
+    '{' importedElements+=[ModularElement] (',' importedElements+=[ModularElement])* '}' 'from' importURI=STRING;
+
+
+// Rule for the main Dungeon structure
 Dungeon:
     'Dungeon' name=ID '{'
         'theme' '=' theme=STRING
         'lvl' '=' lvl=INT
-        (floors+=Floor)*
+        (floors+=Floor)* // Floors can still be *inside* a Dungeon
     '}';
 
+
+// Rule for Floors, which contain Rooms
 Floor:
     'Floor' name=ID '{'
 		(rooms+=Room)*
     '}';
 
+// Rule for Rooms, including cross-references to other Rooms for connections
 Room:
 	'Room' name=ID '{'
 		'size' '=' size=Sizes
 		'type' '=' type=RoomTypes
-		'connections' "=" '[' connections+=ID (',' connections+=ID)* ']'
-		(traps+=Trap)*
-		(npcs+=NPC)*
+		// Connections now allow ZERO or MORE direct cross-references to Room elements
+		'connections' "=" '[' (connections+=[Room] (',' connections+=[Room])*)? ']'
+		// CORRECTED: Traps now use cross-references to Trap elements
+		('traps' "=" '[' (traps+=[Trap] (',' traps+=[Trap])*)? ']')?
+		// CORRECTED: NPCs now use cross-references to NPC elements
+		('npcs' "=" '[' (npcs+=[NPC] (',' npcs+=[NPC])*)? ']')?
 	'}'
 ;
 
+// Rule for Traps
 Trap:
     'Trap' name=ID '{'
         'trigger' '=' trigger=EventTrigger
@@ -31,38 +62,37 @@ Trap:
         'triggerChance' '=' triggerChance=INT
     '}';
 
+// Rule for NPCs, including the Expression for health
 NPC:
     'NPC' name=ID '{'
         'behaviour' '=' behaviour=Behaviour
         'type' '=' type=NPCType
-        'health' '=' baseHealth=Expression // Now health is an Expression
+        'health' '=' baseHealth=Expression
     '}';
-    
+
+// Rules for Expressions (Arithmetic)
 Expression returns Expression:
-    Addition; // Entry point: lowest precedence
+    Addition;
 
 Addition returns Expression:
     Multiplication ({BinaryOperation.left=current} operator=('+'|'-') right=Multiplication)*;
-    // Parses Multiplication, then handles '+' or '-' left-associatively using Action
 
 Multiplication returns Expression:
     PrimaryExpression ({BinaryOperation.left=current} operator=('*'|'/') right=PrimaryExpression)*;
-    // Parses Primary, then handles '*' or '/' left-associatively using Action
 
 PrimaryExpression returns Expression:
-    '(' Expression ')'                // Parentheses for grouping
-    | {NumberLiteral} value=INT       // An integer number is the base case
+    '(' Expression ')'
+    | {NumberLiteral} value=INT
 ;
 
+// Enum definitions for various properties
 enum Behaviour:
 	AGGRESSIVE | NEUTRAL
 ;
 
-
 enum NPCType:
 	MERCHANT | ENEMY | NORMAL
 ;
-
 
 enum BOOLEAN:
 	true | false
