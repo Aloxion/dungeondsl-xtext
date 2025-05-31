@@ -3,14 +3,20 @@
  */
 package org.xtext.validation;
 
+import java.awt.List;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import org.eclipse.emf.common.util.BasicEList;
+import org.eclipse.emf.common.util.EList;
 import org.eclipse.xtext.validation.AbstractDeclarativeValidator;
 import org.eclipse.xtext.validation.Check;
 import org.eclipse.xtext.validation.EValidatorRegistrar;
 import org.xtext.dungeonDSL.BOOLEAN;
+import org.xtext.dungeonDSL.Dungeon;
 import org.xtext.dungeonDSL.DungeonDSLPackage;
 import org.xtext.dungeonDSL.Floor;
 import org.xtext.dungeonDSL.Room;
@@ -31,16 +37,7 @@ import org.xtext.dungeonDSL.Trap;
  * See
  * https://www.eclipse.org/Xtext/documentation/303_runtime_concepts.html#validation
  */
-public class DungeonDSLValidator extends AbstractDeclarativeValidator {
-
-    /**
-     * Required override for Xtext framework integration.
-     * Empty implementation is standard for custom validators.
-     */
-    @Override
-    public void register(EValidatorRegistrar registrar) {
-        // Do nothing, called by Eclipse
-    }
+public class DungeonDSLValidator extends AbstractDungeonDSLValidator {
 
     // Error/Warning code constants - these provide unique identifiers for each
     // validation rule
@@ -100,23 +97,41 @@ public class DungeonDSLValidator extends AbstractDeclarativeValidator {
         }
     }
 
+
     /**
-     * Validates that room connections refer to existing rooms on the same floor
-     * and that a room cannot connect to itself.
-     * 
-     * Business Rules:
-     * 1. Connected rooms must exist on the same floor
-     * 2. Rooms cannot connect to themselves
-     * 3. Case-insensitive matching for flexibility
-     */
+ 	* Validates that room connections refer to existing rooms in the dungeon
+ 	* and that a room cannot connect to itself.
+ 	* 
+ 	* Business Rules:
+ 	* 1. Connected rooms must exist somewhere in the dungeon
+ 	* 2. Rooms cannot connect to themselves
+ 	* 3. Case-insensitive matching for flexibility
+ 	*/
     @Check
-    public void checkValidRoomConnections(Floor floor) {
+    public void checkValidRoomConnections(Dungeon dungeon) {
+    	
+    	EList<Floor> floors = dungeon.getFloors();
+    	
+    	EList<Room> allRooms = new BasicEList<>(); // Collect all rooms across all floors
+		for (Floor floor : floors) {
+			// Validate each floor individually
+		    if (floor.getRooms() != null) {
+                allRooms.addAll(floor.getRooms());
+            }
+		}
+		
+		validateDungeonConnections(allRooms);
+     
+    }
+    
+    
+	public void validateDungeonConnections(EList<Room> allRooms) {
+		   // Build lookup maps of all rooms in this floor
         // Create lookup maps for efficient room name validation
         Map<String, Room> roomsByName = new HashMap<>(); // Exact case mapping
         Map<String, Room> roomsByNameLowerCase = new HashMap<>(); // Case-insensitive mapping
 
-        // Build lookup maps of all rooms in this floor
-        for (Room room : floor.getRooms()) {
+        for (Room room : allRooms) {
             if (room.getName() != null) {
                 roomsByName.put(room.getName(), room);
                 // Store lowercase version for case-insensitive lookups
@@ -125,7 +140,7 @@ public class DungeonDSLValidator extends AbstractDeclarativeValidator {
         }
 
         // Validate each room's connections
-        for (Room room : floor.getRooms()) {
+        for (Room room : allRooms) {
             if (room.getConnections() != null && room.getName() != null) {
                 String roomNameLower = room.getName().toLowerCase();
 
@@ -162,7 +177,7 @@ public class DungeonDSLValidator extends AbstractDeclarativeValidator {
                 }
             }
         }
-    }
+	}
 
     /**
      * Validates that room connections are symmetric (bidirectional).
@@ -258,6 +273,7 @@ public class DungeonDSLValidator extends AbstractDeclarativeValidator {
     @Check
     public void checkTrapTriggerChance(Trap trap) {
         // Simple range validation for percentage values
+    	System.out.println("Checking trap trigger chance for trap: " + trap.getName() + " with chance: " + trap.getTriggerChance());
         if (trap.getTriggerChance() < 0 || trap.getTriggerChance() > 100) {
             error("Trap trigger chance must be between 0 and 100",
                     trap, DungeonDSLPackage.Literals.TRAP__TRIGGER_CHANCE, VALID_TRIGGER_CHANCE);
