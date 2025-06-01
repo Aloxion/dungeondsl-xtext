@@ -3,6 +3,9 @@
  */
 package org.xtext.validation;
 
+import org.eclipse.xtext.validation.Check;
+import org.xtext.dungeonDSL.Trap;
+import static org.xtext.dungeonDSL.DungeonDSLPackage.Literals;
 
 /**
  * This class contains custom validation rules. 
@@ -10,6 +13,20 @@ package org.xtext.validation;
  * See https://www.eclipse.org/Xtext/documentation/303_runtime_concepts.html#validation
  */
 public class DungeonDSLValidator extends AbstractDungeonDSLValidator {
+	
+	public static final String TRIGGER_CHANCE_OUT_OF_RANGE = "trigger_chance_out_of_range";
+
+	@Check
+	public void checkTrapTriggerChance(Trap trap) {
+	    int chance = trap.getTriggerChance();
+	    if (chance < 0 || chance > 100) {
+	        error(
+	            "Trigger chance must be between 0 and 100",
+	            Literals.TRAP__TRIGGER_CHANCE,
+	            TRIGGER_CHANCE_OUT_OF_RANGE
+	        );
+	    }
+	}
 	
 //	public static final String INVALID_NAME = "invalidName";
 //

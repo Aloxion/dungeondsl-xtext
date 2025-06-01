@@ -4,6 +4,7 @@
 package org.xtext.tests
 
 import com.google.inject.Inject
+
 import org.eclipse.xtext.testing.InjectWith
 import org.eclipse.xtext.testing.extensions.InjectionExtension
 import org.eclipse.xtext.testing.util.ParseHelper
@@ -17,14 +18,176 @@ import org.xtext.dungeonDSL.Dungeon
 class DungeonDSLParsingTest {
 	@Inject
 	ParseHelper<Dungeon> parseHelper
+
+	val validDungeon = '''
+		Dungeon MyDungeon {
+			theme = "Dark"
+			lvl = 1
+			Floor FirstFloor {
+				Room A {
+					size = SMALL
+					type = COMBAT
+					connections = [B]
+				}
+				Room B {
+					size = MEDIUM
+					type = TREASURE
+					connections = [A]
+				}
+			}
+		}
+	'''
+
+	@Test
+	def void parseValidDungeon() {
+		val model = parseHelper.parse(validDungeon)
+		Assertions.assertNotNull(model)
+		Assertions.assertTrue(model.eResource.errors.empty,
+			'''Unexpected errors: «model.eResource.errors.join(", ")»''')
+	}
+	
 	
 	@Test
 	def void loadModel() {
-		val result = parseHelper.parse('''
-			Hello Xtext!
-		''')
-		Assertions.assertNotNull(result)
-		val errors = result.eResource.errors
-		Assertions.assertTrue(errors.isEmpty, '''Unexpected errors: «errors.join(", ")»''')
+  	val result = parseHelper.parse('''
+  	Dungeon Example {
+   		theme = "Adventure"
+   		lvl = 1
+   		Floor Start {
+   			Room A {
+   				size = SMALL
+  				type = TREASURE
+  				connections = [B]
+ 			}
+ 			Room B {
+ 				size = MEDIUM
+ 				type = TREASURE
+ 				connections = [A]
+			}
+		}
+}
+  			''')
+  		Assertions.assertNotNull(result)
+  		val errors = result.eResource.errors
+  		Assertions.assertTrue(errors.isEmpty, '''Unexpected errors: «errors.join(", ")»''')
 	}
+
+	
+		
+	@Test
+	def void parseFailsOnBadTrap() {
+		val model = parseHelper.parse('''
+			Dungeon Broken {
+				theme = "Cursed"
+				lvl = 2
+				Floor Main {
+					Room R {
+						size = LARGE
+						type = BOSS
+						connections = []
+						Trap T {
+							trigger = stepOn
+							disarmable = maybe
+							triggerChance = 101
+						}
+					}
+				}
+			}
+		''')
+
+		Assertions.assertFalse(model.eResource.errors.empty,
+			"Expected parser errors due to invalid boolean or number value")
+	}
+	
+	
+	@Test
+	def void parseFailsOnNegativeTrapChance() {
+		val model = parseHelper.parse('''
+			Dungeon NegativeTrap {
+				theme = "Dark"
+				lvl = 3
+				Floor LevelOne {
+					Room TrapRoom {
+						size = MEDIUM
+						type = COMBAT
+						connections = []
+						Trap Explosive {
+							trigger = stepOn
+							disarmable = true
+							triggerChance = -1
+						}
+					}
+				}
+			}
+		''')
+		Assertions.assertFalse(model.eResource.errors.empty,
+			"Expected parser or validation error due to negative triggerChance")
+	}
+	
+	 
+	
+	@Test
+	def void detectCyclicRoomConnections() {
+  		val model = parseHelper.parse('''
+			Dungeon LoopDungeon {
+				theme = "Loop"
+				lvl = 999
+				Floor F1 {
+					Room A {
+						size = MEDIUM
+						type = COMBAT
+						connections = [B]
+					}
+					Room B {
+						size = MEDIUM
+						type = TREASURE
+						connections = [A]
+					}
+		}
+	}
+	''')
+
+  // You might not actually have a validator rule for this yet
+  // But once you do, use something like:
+  // assertError(model, DungeonDSLPackage.Literals.ROOM, "CYCLIC_CONNECTION")
+
+  // For now, we just assert no errors to test the base case
+  Assertions.assertTrue(model.eResource.errors.empty, "Unexpected errors in the model")
+}
+	
+
+	/* 
+	@Test
+	def void triggerChanceTooHigh() {
+	  val model = parseHelper.parse('''
+	    Dungeon ProbDungeon {
+	      theme = "Bad Luck"
+	      lvl = 13
+	      Floor Main {
+	        Room Room1 {
+	          size = MEDIUM
+	          type = TREASURE
+	          connections = []
+	          Trap Explode {
+	            trigger = stepOn
+	            disarmable = true
+	            triggerChance = 150
+	          }
+	        }
+	      }
+	    }
+	  ''')
+	
+	  val errors = model.eResource.errors
+  		Assertions.assertFalse(errors.isEmpty, "Expected errors due to triggerChance being out of range")
+  		Assertions.assertTrue(errors.exists[it.message.contains("TRIGGER_CHANCE_OUT_OF_RANGE")], 
+    		"Expected error message for triggerChance out of range")
+	}
+	*/
+	
+	
+	
+	
+	
+	
 }
