@@ -38,44 +38,50 @@ class DungeonDSLParsingTest {
 		}
 	'''
 
+	/* Test if a valid dungeon model parses without any errors */
 	@Test
 	def void parseValidDungeon() {
+		println("Testing valid model: checking that a complete dungeon with two rooms parses correctly.")
 		val model = parseHelper.parse(validDungeon)
 		Assertions.assertNotNull(model)
 		Assertions.assertTrue(model.eResource.errors.empty,
 			'''Unexpected errors: «model.eResource.errors.join(", ")»''')
+		println("Success: Valid model parsed with no errors. \n")
 	}
 	
-	
+	/* Similar to the above, checks if a minimal correct model parses successfully */
 	@Test
 	def void loadModel() {
-  	val result = parseHelper.parse('''
-  	Dungeon Example {
-   		theme = "Adventure"
-   		lvl = 1
-   		Floor Start {
-   			Room A {
-   				size = SMALL
-  				type = TREASURE
-  				connections = [B]
- 			}
- 			Room B {
- 				size = MEDIUM
- 				type = TREASURE
- 				connections = [A]
+		println("Testing basic model: verifying that a simple dungeon with rooms can be loaded.")
+	  	val result = parseHelper.parse('''
+	  	Dungeon Example {
+	   		theme = "Adventure"
+	   		lvl = 1
+	   		Floor Start {
+	   			Room A {
+	   				size = SMALL
+	  				type = TREASURE
+	  				connections = [B]
+	 			}
+	 			Room B {
+	 				size = MEDIUM
+	 				type = TREASURE
+	 				connections = [A]
+				}
 			}
-		}
-}
+	}
   			''')
   		Assertions.assertNotNull(result)
   		val errors = result.eResource.errors
   		Assertions.assertTrue(errors.isEmpty, '''Unexpected errors: «errors.join(", ")»''')
+		println("Success: Minimal dungeon model parsed without issues. \n")
 	}
 
 	
-		
+	// Check if parsing fails when invalid values are used for enum/number fields
 	@Test
 	def void parseFailsOnBadTrap() {
+		println("Testing invalid model: using a trap with wrong boolean and out-of-range triggerChance.")
 		val model = parseHelper.parse('''
 			Dungeon Broken {
 				theme = "Cursed"
@@ -97,11 +103,13 @@ class DungeonDSLParsingTest {
 
 		Assertions.assertFalse(model.eResource.errors.empty,
 			"Expected parser errors due to invalid boolean or number value")
+		println("Success: Invalid values triggered expected parser errors. \n")
 	}
 	
-	
+	/* Test if parser catches negative numbers where only positives should be allowed */
 	@Test
 	def void parseFailsOnNegativeTrapChance() {
+		println("Testing invalid model: setting a negative triggerChance value for a trap.")
 		val model = parseHelper.parse('''
 			Dungeon NegativeTrap {
 				theme = "Dark"
@@ -122,12 +130,14 @@ class DungeonDSLParsingTest {
 		''')
 		Assertions.assertFalse(model.eResource.errors.empty,
 			"Expected parser or validation error due to negative triggerChance")
+		println("Success: Negative triggerChance correctly caused a parsing error. \n")
 	}
 	
 	 
-	
+	/* Checks that cyclic room connections (room A to B and B to A) don’t cause parsing errors */
 	@Test
 	def void detectCyclicRoomConnections() {
+		println("Testing room connectivity: parsing a model with cyclic room connections (A <-> B).")
   		val model = parseHelper.parse('''
 			Dungeon LoopDungeon {
 				theme = "Loop"
@@ -147,13 +157,14 @@ class DungeonDSLParsingTest {
 	}
 	''')
 
-  // You might not actually have a validator rule for this yet
-  // But once you do, use something like:
-  // assertError(model, DungeonDSLPackage.Literals.ROOM, "CYCLIC_CONNECTION")
-
-  // For now, we just assert no errors to test the base case
-  Assertions.assertTrue(model.eResource.errors.empty, "Unexpected errors in the model")
-}
+	  // You might not actually have a validator rule for this yet
+	  // But once you do, use something like:
+	  // assertError(model, DungeonDSLPackage.Literals.ROOM, "CYCLIC_CONNECTION")
+	
+	  // For now, we just assert no errors to test the base case
+	  Assertions.assertTrue(model.eResource.errors.empty, "Unexpected errors in the model")
+	  println("Success: Cyclic room connections parsed successfully. \n")
+	}
 	
 
 	/* 
@@ -186,8 +197,28 @@ class DungeonDSLParsingTest {
 	*/
 	
 	
-	
-	
-	
+
+	/* Checks if properties of parsed Room objects are correctly set */
+	@Test
+	def void testRoomStructure() {
+		println("Testing room structure: checking that parsed room has correct name and no connections.")
+		val model = parseHelper.parse('''
+	    Dungeon TestD {
+	      theme = "Dark"
+	      lvl = 1
+	      Floor A {
+	        Room R1 {
+	          size = SMALL
+	          type = COMBAT
+	          connections = []
+	        }
+	      }
+	    }
+	  ''')
+	  val room = model.floors.head.rooms.head
+	  Assertions.assertEquals("R1", room.name)
+	  Assertions.assertEquals(0, room.connections.size)
+	  println("Success: Room name and structure parsed as expected. \n")
+	}
 	
 }

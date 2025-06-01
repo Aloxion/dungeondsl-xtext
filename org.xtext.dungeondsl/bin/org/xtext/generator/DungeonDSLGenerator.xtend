@@ -32,8 +32,20 @@ class DungeonDSLGenerator extends AbstractGenerator {
         
         if (dungeon !== null) {
             // Generate JSON file with same name as the dungeon
-            val fileName = dungeon.name + ".py"
-            fsa.generateFile(fileName, generateDungeon(dungeon))
+            
+            val content = generateDungeon(dungeon)
+
+        	val baseName = dungeon.name
+        	val version1 = baseName + "_v1.py"
+	        val version2 = baseName + "_v2.py"
+	
+	        // Generate both versions
+	        fsa.generateFile(version1, content)
+	        fsa.generateFile(version2, content)
+            
+            
+            //val fileName = dungeon.name + ".py"
+            //fsa.generateFile(fileName, generateDungeon(dungeon))
         }
         
     }
@@ -160,6 +172,7 @@ dung = Dungeon("«escape(dungeon.name)»", "«escape(dungeon.theme)»", «dungeo
 dung.add_floor(«floor.name»)
 	«FOR room : floor.rooms»
 
+# BEGIN ROOM: «room.name» ON FLOOR: «floor.name»
 «room.name»_«floor.name» = Dungeon.Room(
 	     name="«room.name»",
 	     size=Sizes.«room.size»,
@@ -175,6 +188,7 @@ dung.add_floor(«floor.name»)
 )
 «room.name»_«floor.name».add_npc(«npc.name»_«room.name»)
 «ENDFOR»
+# END ROOM: «room.name»
 
     «ENDFOR»
 «ENDFOR»
