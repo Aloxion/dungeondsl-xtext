@@ -359,54 +359,46 @@ ruleRoom returns [EObject current=null]
 		}
 		(
 			(
-				lv_connections_12_0=RULE_ID
-				{
-					newLeafNode(lv_connections_12_0, grammarAccess.getRoomAccess().getConnectionsIDTerminalRuleCall_12_0());
-				}
-				{
-					if ($current==null) {
-						$current = createModelElement(grammarAccess.getRoomRule());
-					}
-					addWithLastConsumed(
-						$current,
-						"connections",
-						lv_connections_12_0,
-						"org.eclipse.xtext.common.Terminals.ID");
-				}
-			)
-		)
-		(
-			otherlv_13=','
-			{
-				newLeafNode(otherlv_13, grammarAccess.getRoomAccess().getCommaKeyword_13_0());
-			}
-			(
 				(
-					lv_connections_14_0=RULE_ID
-					{
-						newLeafNode(lv_connections_14_0, grammarAccess.getRoomAccess().getConnectionsIDTerminalRuleCall_13_1_0());
-					}
 					{
 						if ($current==null) {
 							$current = createModelElement(grammarAccess.getRoomRule());
 						}
-						addWithLastConsumed(
-							$current,
-							"connections",
-							lv_connections_14_0,
-							"org.eclipse.xtext.common.Terminals.ID");
+					}
+					otherlv_12=RULE_ID
+					{
+						newLeafNode(otherlv_12, grammarAccess.getRoomAccess().getConnectionsRoomCrossReference_12_0_0());
 					}
 				)
 			)
-		)*
+			(
+				otherlv_13=','
+				{
+					newLeafNode(otherlv_13, grammarAccess.getRoomAccess().getCommaKeyword_12_1_0());
+				}
+				(
+					(
+						{
+							if ($current==null) {
+								$current = createModelElement(grammarAccess.getRoomRule());
+							}
+						}
+						otherlv_14=RULE_ID
+						{
+							newLeafNode(otherlv_14, grammarAccess.getRoomAccess().getConnectionsRoomCrossReference_12_1_1_0());
+						}
+					)
+				)
+			)*
+		)?
 		otherlv_15=']'
 		{
-			newLeafNode(otherlv_15, grammarAccess.getRoomAccess().getRightSquareBracketKeyword_14());
+			newLeafNode(otherlv_15, grammarAccess.getRoomAccess().getRightSquareBracketKeyword_13());
 		}
 		(
 			(
 				{
-					newCompositeNode(grammarAccess.getRoomAccess().getTrapsTrapParserRuleCall_15_0());
+					newCompositeNode(grammarAccess.getRoomAccess().getTrapsTrapParserRuleCall_14_0());
 				}
 				lv_traps_16_0=ruleTrap
 				{
@@ -425,7 +417,7 @@ ruleRoom returns [EObject current=null]
 		(
 			(
 				{
-					newCompositeNode(grammarAccess.getRoomAccess().getNpcsNPCParserRuleCall_16_0());
+					newCompositeNode(grammarAccess.getRoomAccess().getNpcsNPCParserRuleCall_15_0());
 				}
 				lv_npcs_17_0=ruleNPC
 				{
@@ -443,7 +435,7 @@ ruleRoom returns [EObject current=null]
 		)*
 		otherlv_18='}'
 		{
-			newLeafNode(otherlv_18, grammarAccess.getRoomAccess().getRightCurlyBracketKeyword_17());
+			newLeafNode(otherlv_18, grammarAccess.getRoomAccess().getRightCurlyBracketKeyword_16());
 		}
 	)
 ;

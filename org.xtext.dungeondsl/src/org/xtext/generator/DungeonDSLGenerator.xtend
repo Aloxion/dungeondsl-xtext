@@ -11,9 +11,6 @@ import org.eclipse.xtext.generator.IGeneratorContext
 import org.xtext.dungeonDSL.Dungeon;
 import org.xtext.dungeonDSL.Floor;
 import org.xtext.dungeonDSL.Room;
-import org.xtext.dungeonDSL.Trap;
-import java.lang.reflect.Array
-import java.util.ArrayList
 import org.eclipse.emf.common.util.EList;
 import org.xtext.dungeonDSL.BinaryOperation
 import org.xtext.dungeonDSL.NumberLiteral
@@ -472,7 +469,7 @@ pygame.quit()
     
     // Helper method to escape JSON strings
  
- 	def getConnectedRoomName(String connectedName, Floor currentFloor, EList<Floor> floors) {
+ 	def getConnectedRoomName(Room connectedName, Floor currentFloor, EList<Floor> floors) {
  		
  		for (room : currentFloor.rooms) {
  			

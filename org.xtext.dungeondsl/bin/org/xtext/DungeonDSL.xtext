@@ -18,7 +18,7 @@ Room:
 	'Room' name=ID '{'
 		'size' '=' size=Sizes
 		'type' '=' type=RoomTypes
-		'connections' "=" '[' connections+=ID (',' connections+=ID)* ']'
+		'connections' "=" '[' (connections+=[Room] (',' connections+=[Room])*)? ']' // adds cross-referencing
 		(traps+=Trap)*
 		(npcs+=NPC)*
 	'}'
