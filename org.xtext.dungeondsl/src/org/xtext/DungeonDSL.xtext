@@ -52,6 +52,8 @@ Multiplication returns Expression:
 PrimaryExpression returns Expression:
     '(' Expression ')'                // Parentheses for grouping
     | {NumberLiteral} value=INT       // An integer number is the base case
+    | {LevelReference} 'lvl'
+    | {NPCReference} npc=[NPC]        // Reference to another NPC's health   
 ;
 
 enum Behaviour:

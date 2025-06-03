@@ -74,5 +74,9 @@
     <genClasses ecoreClass="DungeonDSL.ecore#//NumberLiteral">
       <genFeatures createChild="false" ecoreFeature="ecore:EAttribute DungeonDSL.ecore#//NumberLiteral/value"/>
     </genClasses>
+    <genClasses ecoreClass="DungeonDSL.ecore#//LevelReference"/>
+    <genClasses ecoreClass="DungeonDSL.ecore#//NPCReference">
+      <genFeatures notify="false" createChild="false" propertySortChoices="true" ecoreFeature="ecore:EReference DungeonDSL.ecore#//NPCReference/npc"/>
+    </genClasses>
   </genPackages>
 </genmodel:GenModel>

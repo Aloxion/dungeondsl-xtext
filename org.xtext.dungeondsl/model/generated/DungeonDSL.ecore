@@ -77,4 +77,8 @@
   <eClassifiers xsi:type="ecore:EClass" name="NumberLiteral" eSuperTypes="#//Expression">
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="value" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
   </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="LevelReference" eSuperTypes="#//Expression"/>
+  <eClassifiers xsi:type="ecore:EClass" name="NPCReference" eSuperTypes="#//Expression">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="npc" eType="#//NPC"/>
+  </eClassifiers>
 </ecore:EPackage>

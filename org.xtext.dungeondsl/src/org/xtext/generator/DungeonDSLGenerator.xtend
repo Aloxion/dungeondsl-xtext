@@ -14,6 +14,9 @@ import org.xtext.dungeonDSL.Room;
 import org.eclipse.emf.common.util.EList;
 import org.xtext.dungeonDSL.BinaryOperation
 import org.xtext.dungeonDSL.NumberLiteral
+import org.eclipse.xtext.EcoreUtil2
+import org.xtext.dungeonDSL.LevelReference
+import org.xtext.dungeonDSL.NPCReference
 
 /**
  * Generates code from your model files on save.
@@ -479,19 +482,32 @@ pygame.quit()
  		}
  	}
     
+    def dispatch int evaluate(NPCReference ref) {
+    // Get the health value of the referenced NPC
+    	return ref.npc.baseHealth.evaluate();
+	}
+    
+    
+    def dispatch int evaluate(LevelReference ref) {
+    // Find the containing Dungeon by traversing up the model tree
+	    val dungeon = EcoreUtil2.getContainerOfType(ref, Dungeon)
+	    return dungeon.lvl
+	}
+    
+    
     def dispatch int evaluate(NumberLiteral n) {
     	n.value
 	}
 	
 	def dispatch int evaluate(BinaryOperation b) {
-    val leftVal = b.left.evaluate
-    val rightVal = b.right.evaluate
-    switch b.operator {
-        case '+': leftVal + rightVal
-        case '-': leftVal - rightVal
-        case '*': leftVal * rightVal
-        case '/': leftVal / rightVal
-        default: throw new IllegalArgumentException("Unknown operator: " + b.operator)
+	    val leftVal = b.left.evaluate
+	    val rightVal = b.right.evaluate
+	    switch b.operator {
+	        case '+': leftVal + rightVal
+	        case '-': leftVal - rightVal
+	        case '*': leftVal * rightVal
+	        case '/': leftVal / rightVal
+	        default: throw new IllegalArgumentException("Unknown operator: " + b.operator)
     }
 }
     
