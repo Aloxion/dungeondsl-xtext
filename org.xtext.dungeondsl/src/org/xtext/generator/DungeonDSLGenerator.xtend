@@ -90,7 +90,6 @@ override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorCo
         	System.out.println("Import statement" + importStatement.specificImports.importedElements)
             // Handle specific imports - only collect referenced elements
             val importedResource = getImportedResource(importStatement.specificImports.importURI, importStatement)
-            System.out.println('import res' + importedResource.allContents.head)
             
             if (importedResource !== null) {
                 val importedModel = importedResource.contents.head as Model
@@ -223,8 +222,10 @@ def private Resource getImportedResource(String importUri, EObject context) {
         }
         
         // Resolve import URI against the container's URI
-        val URI baseUri = containerResource.getURI.trimSegments(1)
-        val URI resolvedUri = URI.createURI(importUri).resolve(baseUri)
+        val URI baseURI = containerResource.getURI.trimSegments(1)
+      	val String fixedImportURIString = '/' + importUri; // Ensure it starts with a slash
+	    val String finalURI = baseURI + fixedImportURIString; // Concatenate base URI and import URI string
+        val URI resolvedUri = URI.createURI(finalURI).resolve(baseURI)
         
         // Load the resource using the resource set
         val ResourceSet rs = context.eResource.resourceSet

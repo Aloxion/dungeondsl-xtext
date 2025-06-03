@@ -37,6 +37,8 @@ public class DungeonDSLValidator extends AbstractDungeonDSLValidator {
 
 	@Check
 	public void checkImportSpecificElements(ImportStatement importStatement) {
+		System.out.println("------- NEW VALIDATOR RUN -------" + '\n');
+		System.out.println("VALIDATOR DEBUG: Running checkImportSpecificElements for import statement: " + importStatement.getSpecificImports());
         try { // Added try-catch for debugging EValidator error
             // Only check specific imports (with curly braces syntax)
             if (importStatement.getSpecificImports() == null) {
@@ -63,7 +65,8 @@ public class DungeonDSLValidator extends AbstractDungeonDSLValidator {
             }
 
             IResourceDescription importedDesc = resourceDescriptions.getResourceDescription(resolvedImportURI);
-
+            System.out.println("VALIDATOR DEBUG: Resolved import URI: " + resolvedImportURI);
+       
             if (importedDesc == null) {
                 error("Could not find imported resource: '" + importURIString + "'",
                         specificImports,
@@ -111,35 +114,40 @@ public class DungeonDSLValidator extends AbstractDungeonDSLValidator {
         }
 	}
 
-	// Helper method to resolve import URIs (copied from scope provider for consistency)
 	private URI resolveImportURI(EObject context, String importURIString) {
-//		System.out.println("VALIDATOR DEBUG: Attempting to resolve import URI: " + importURIString);
+	    URI resolvedImportURI = null;
+	    IResourceDescription currentResourceDesc = null;
+	    if (context.eResource() != null) {
+	        currentResourceDesc = resourceDescriptions.getResourceDescription(context.eResource().getURI());
+	    }
 
-        URI resolvedImportURI = null;
-        IResourceDescription currentResourceDesc = null;
-        if (context.eResource() != null) {
-            currentResourceDesc = resourceDescriptions.getResourceDescription(context.eResource().getURI());
-        }
+	    System.out.println("VALIDATOR DEBUG: Current resource description: " + (currentResourceDesc != null ? currentResourceDesc.getURI() : "null"));
 
-        if (currentResourceDesc != null) {
-            try {
-                // Use the URI from the IResourceDescription as the base for resolution
-                URI baseURI = currentResourceDesc.getURI().trimSegments(1); // Get directory of current resource
-                resolvedImportURI = URI.createURI(importURIString).resolve(baseURI);
-//                System.out.println("VALIDATOR DEBUG: Resolved '" + importURIString + "' against '" + baseURI + "' to '" + resolvedImportURI + "'");
-            } catch (IllegalArgumentException e) {
-                System.err.println("VALIDATOR ERROR: Error resolving import URI '" + importURIString + "' against base '" + currentResourceDesc.getURI() + "': " + e.getMessage());
-            }
-        } else {
-            // Fallback if currentResourceDesc is null (e.g., resource not in workspace, transient state)
-            try {
-                resolvedImportURI = URI.createURI(importURIString);
-//                System.out.println("VALIDATOR DEBUG: Directly created URI: '" + resolvedImportURI + "' from '" + importURIString + "'");
-            } catch (IllegalArgumentException e) {
-                System.err.println("VALIDATOR ERROR: Error creating direct URI from import string: " + importURIString + ". Error: " + e.getMessage());
-            }
-        }
-        return resolvedImportURI;
+	    if (currentResourceDesc != null) {
+	        try {
+	            // Use the URI from the IResourceDescription as the base for resolution
+	            URI baseURI = currentResourceDesc.getURI().trimSegments(1); // Get directory of current resource
+	            System.out.println("VALIDATOR DEBUG: Base URI for resolution: " + baseURI); // This is crucial
+	            System.out.println("VALIDATOR DEBUG: Import URI string: " + importURIString); // Also crucial
+	            String fixedImportURIString = '/' + importURIString; // Ensure it starts with a slash
+	            String finalURI = baseURI + fixedImportURIString; // Concatenate base URI and import URI string
+	            System.out.println("VALIDATOR DEBUG: Final URI to resolve: " + finalURI);
+	            
+	            resolvedImportURI = URI.createURI(finalURI).resolve(baseURI);
+	            // System.out.println("VALIDATOR DEBUG: Resolved '" + importURIString + "' against '" + baseURI + "' to '" + resolvedImportURI + "'");
+	        } catch (IllegalArgumentException e) {
+	            System.err.println("VALIDATOR ERROR: Error resolving import URI '" + importURIString + "' against base '" + currentResourceDesc.getURI() + "': " + e.getMessage());
+	        }
+	    } else {
+	        // Fallback if currentResourceDesc is null (e.g., resource not in workspace, transient state)
+	        try {
+	            resolvedImportURI = URI.createURI(importURIString);
+//	            System.out.println("VALIDATOR DEBUG: Directly created URI: '" + resolvedImportURI + "' from '" + importURIString + "'");
+	        } catch (IllegalArgumentException e) {
+	            System.err.println("VALIDATOR ERROR: Error creating direct URI from import string: " + importURIString + ". Error: " + e.getMessage());
+	        }
+	    }
+	    return resolvedImportURI;
 	}
 
     /**

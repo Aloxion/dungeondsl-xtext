@@ -92,9 +92,7 @@ public class DungeonDSLScopeProvider extends AbstractDungeonDSLScopeProvider {
                 }
                 
                 // Properly resolve the URI against the current resource
-                URI currentResourceURI = context.eResource().getURI();
-                URI baseURI = currentResourceURI.trimSegments(1);
-                URI resolvedImportURI = URI.createURI(importURIString).resolve(baseURI);
+                URI resolvedImportURI = resolveImportURI(context, importURIString);
                 
                 IResourceDescription importedDesc = resourceDescriptions.getResourceDescription(resolvedImportURI);
                 if (importedDesc == null) continue;
@@ -157,27 +155,40 @@ public class DungeonDSLScopeProvider extends AbstractDungeonDSLScopeProvider {
         return false;
     }
 
-    // Helper method to resolve import URIs
-    private URI resolveImportURI(EObject context, String importURIString) {
-        // Get the IResourceDescription for the current resource
-        IResourceDescription currentResourceDesc = null;
-        if (context.eResource() != null) {
-            currentResourceDesc = resourceDescriptions.getResourceDescription(context.eResource().getURI());
-        }
+	private URI resolveImportURI(EObject context, String importURIString) {
+	    URI resolvedImportURI = null;
+	    IResourceDescription currentResourceDesc = null;
+	    if (context.eResource() != null) {
+	        currentResourceDesc = resourceDescriptions.getResourceDescription(context.eResource().getURI());
+	    }
 
-        if (currentResourceDesc != null) {
-            try {
-                return currentResourceDesc.getURI().resolve(URI.createURI(importURIString));
-            } catch (IllegalArgumentException e) {
-                // Error handling
-            }
-        }
-        
-        try {
-            return URI.createURI(importURIString);
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
+	    System.out.println("VALIDATOR DEBUG: Current resource description: " + (currentResourceDesc != null ? currentResourceDesc.getURI() : "null"));
+
+	    if (currentResourceDesc != null) {
+	        try {
+	            // Use the URI from the IResourceDescription as the base for resolution
+	            URI baseURI = currentResourceDesc.getURI().trimSegments(1); // Get directory of current resource
+	            System.out.println("VALIDATOR DEBUG: Base URI for resolution: " + baseURI); // This is crucial
+	            System.out.println("VALIDATOR DEBUG: Import URI string: " + importURIString); // Also crucial
+	            String fixedImportURIString = '/' + importURIString; // Ensure it starts with a slash
+	            String finalURI = baseURI + fixedImportURIString; // Concatenate base URI and import URI string
+	            System.out.println("VALIDATOR DEBUG: Final URI to resolve: " + finalURI);
+	            
+	            resolvedImportURI = URI.createURI(finalURI).resolve(baseURI);
+	            // System.out.println("VALIDATOR DEBUG: Resolved '" + importURIString + "' against '" + baseURI + "' to '" + resolvedImportURI + "'");
+	        } catch (IllegalArgumentException e) {
+	            System.err.println("VALIDATOR ERROR: Error resolving import URI '" + importURIString + "' against base '" + currentResourceDesc.getURI() + "': " + e.getMessage());
+	        }
+	    } else {
+	        // Fallback if currentResourceDesc is null (e.g., resource not in workspace, transient state)
+	        try {
+	            resolvedImportURI = URI.createURI(importURIString);
+//	            System.out.println("VALIDATOR DEBUG: Directly created URI: '" + resolvedImportURI + "' from '" + importURIString + "'");
+	        } catch (IllegalArgumentException e) {
+	            System.err.println("VALIDATOR ERROR: Error creating direct URI from import string: " + importURIString + ". Error: " + e.getMessage());
+	        }
+	    }
+	    return resolvedImportURI;
+	}
 
 }
