@@ -25,6 +25,10 @@ import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.xtext.dungeonDSL.BOOLEAN
 import org.xtext.dungeonDSL.EventTrigger
+import org.eclipse.xtext.EcoreUtil2
+import org.xtext.dungeonDSL.Dungeon
+import org.xtext.dungeonDSL.LevelReference
+import org.xtext.dungeonDSL.NPCReference
 
 // Import Random for shuffle
 
@@ -36,17 +40,13 @@ import org.xtext.dungeonDSL.EventTrigger
 class DungeonDSLGenerator extends AbstractGenerator {
 
 override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorContext context) {
-    // Get the root element of the parsed model, which is now 'Model'
-    val model = resource.contents.head as Model // Cast the head element to Model
+    val model = resource.contents.head as Model 
 
     if (model === null) {
-        // Handle cases where the resource is empty or doesn't contain a Model
         return
     }
 
     // Collect ALL relevant elements from the model and its imports
-    // Xtext's linking resolves cross-references, so we need to collect all
-    // potential targets (Rooms, Traps, NPCs) that might be referenced.
     val List<Room> allRooms = new ArrayList<Room>()
     val List<Floor> allFloors = new ArrayList<Floor>()
     val List<Trap> allTraps = new ArrayList<Trap>()
@@ -84,11 +84,10 @@ override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorCo
         }
     }
 
-    // Process imports, handling both old-style imports and new specific imports
     for (importStatement : model.imports) {
         if (importStatement.specificImports !== null) {
         	System.out.println("Import statement" + importStatement.specificImports.importedElements)
-            // Handle specific imports - only collect referenced elements
+
             val importedResource = getImportedResource(importStatement.specificImports.importURI, importStatement)
             
             if (importedResource !== null) {
@@ -192,9 +191,8 @@ override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorCo
         }
     }
 
-    // For now, let's ensure our lists contain unique elements if there's overlap
-    // (e.g., a Room is defined top-level and also within a Floor).
-    // Using Sets and converting back to Lists is a simple way to get unique elements.
+
+	// Unique Lists
     val uniqueRooms = new ArrayList<Room>(new HashSet(allRooms))
     val uniqueFloors = new ArrayList<Floor>(new HashSet(allFloors))
     val uniqueTraps = new ArrayList<Trap>(new HashSet(allTraps))
@@ -208,14 +206,12 @@ override void doGenerate(Resource resource, IFileSystemAccess2 fsa, IGeneratorCo
     fsa.generateFile(fileName, generateDungeonPython(model, uniqueFloors, uniqueRooms, uniqueTraps, uniqueNPCs))
 }
 
-// Helper method to resolve imports
 def private Resource getImportedResource(String importUri, EObject context) {
     if (importUri === null || importUri.isEmpty) {
         return null
     }
     
     try {
-        // Get the containing resource
         val Resource containerResource = context.eResource
         if (containerResource === null || containerResource.getURI === null) {
             return null
@@ -696,11 +692,24 @@ pygame.quit()
 sys.exit()
 '''
 
-	// Helper method to evaluate Expression (remains the same)
+    def dispatch int evaluate(NPCReference ref) {
+    // Get the health value of the referenced NPC
+    	return ref.npc.baseHealth.evaluate();
+	}
+    
+    
+    def dispatch int evaluate(LevelReference ref) {
+    // Find the containing Dungeon by traversing up the model tree
+	    val model = EcoreUtil2.getContainerOfType(ref, Model)
+	    return model.dungeon.lvl
+	}
+
+	// Evaluates Expression for NumberLiteral (INT)
 	def dispatch int evaluate(NumberLiteral n) {
 		n.value
 	}
-
+	
+	// Evaluates Expression for Binary Operation
 	def dispatch int evaluate(BinaryOperation b) {
 		val leftVal = b.left.evaluate
 		val rightVal = b.right.evaluate

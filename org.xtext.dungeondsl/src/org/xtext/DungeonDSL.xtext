@@ -83,6 +83,8 @@ Multiplication returns Expression:
 PrimaryExpression returns Expression:
     '(' Expression ')'
     | {NumberLiteral} value=INT
+    | {LevelReference} 'lvl'
+    | {NPCReference} npc=[NPC]
 ;
 
 // Enum definitions for various properties

@@ -1314,6 +1314,43 @@ rulePrimaryExpression returns [EObject current=null]
 				)
 			)
 		)
+		    |
+		(
+			(
+				{
+					$current = forceCreateModelElement(
+						grammarAccess.getPrimaryExpressionAccess().getLevelReferenceAction_2_0(),
+						$current);
+				}
+			)
+			otherlv_6='lvl'
+			{
+				newLeafNode(otherlv_6, grammarAccess.getPrimaryExpressionAccess().getLvlKeyword_2_1());
+			}
+		)
+		    |
+		(
+			(
+				{
+					$current = forceCreateModelElement(
+						grammarAccess.getPrimaryExpressionAccess().getNPCReferenceAction_3_0(),
+						$current);
+				}
+			)
+			(
+				(
+					{
+						if ($current==null) {
+							$current = createModelElement(grammarAccess.getPrimaryExpressionRule());
+						}
+					}
+					otherlv_8=RULE_ID
+					{
+						newLeafNode(otherlv_8, grammarAccess.getPrimaryExpressionAccess().getNpcNPCCrossReference_3_1_0());
+					}
+				)
+			)
+		)
 	)
 ;
 

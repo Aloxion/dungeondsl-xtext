@@ -138,11 +138,9 @@ public class DungeonDSLScopeProvider extends AbstractDungeonDSLScopeProvider {
             return new SimpleScope(visibleObjects);
         }
 
-        // Fallback to default scoping for all other references
         return super.getScope(context, reference);
     }
 
-    // Helper method to check if an element is of the right type for a reference
     private boolean isElementOfRightType(ModularElement element, EReference reference) {
         if (reference == DungeonDSLPackage.Literals.ROOM__CONNECTIONS || 
             reference.getEReferenceType() == DungeonDSLPackage.Literals.ROOM) {
@@ -162,30 +160,27 @@ public class DungeonDSLScopeProvider extends AbstractDungeonDSLScopeProvider {
 	        currentResourceDesc = resourceDescriptions.getResourceDescription(context.eResource().getURI());
 	    }
 
-	    System.out.println("VALIDATOR DEBUG: Current resource description: " + (currentResourceDesc != null ? currentResourceDesc.getURI() : "null"));
+	    System.out.println("SCOPING DEBUG: Current resource description: " + (currentResourceDesc != null ? currentResourceDesc.getURI() : "null"));
 
 	    if (currentResourceDesc != null) {
 	        try {
-	            // Use the URI from the IResourceDescription as the base for resolution
 	            URI baseURI = currentResourceDesc.getURI().trimSegments(1); // Get directory of current resource
-	            System.out.println("VALIDATOR DEBUG: Base URI for resolution: " + baseURI); // This is crucial
-	            System.out.println("VALIDATOR DEBUG: Import URI string: " + importURIString); // Also crucial
+	            System.out.println("SCOPING DEBUG: Base URI for resolution: " + baseURI); // This is crucial
+	            System.out.println("SCOPING DEBUG: Import URI string: " + importURIString); // Also crucial
 	            String fixedImportURIString = '/' + importURIString; // Ensure it starts with a slash
 	            String finalURI = baseURI + fixedImportURIString; // Concatenate base URI and import URI string
-	            System.out.println("VALIDATOR DEBUG: Final URI to resolve: " + finalURI);
+	            System.out.println("SCOPING DEBUG: Final URI to resolve: " + finalURI);
 	            
 	            resolvedImportURI = URI.createURI(finalURI).resolve(baseURI);
-	            // System.out.println("VALIDATOR DEBUG: Resolved '" + importURIString + "' against '" + baseURI + "' to '" + resolvedImportURI + "'");
 	        } catch (IllegalArgumentException e) {
-	            System.err.println("VALIDATOR ERROR: Error resolving import URI '" + importURIString + "' against base '" + currentResourceDesc.getURI() + "': " + e.getMessage());
+	            System.err.println("SCOPING ERROR: Error resolving import URI '" + importURIString + "' against base '" + currentResourceDesc.getURI() + "': " + e.getMessage());
 	        }
 	    } else {
 	        // Fallback if currentResourceDesc is null (e.g., resource not in workspace, transient state)
 	        try {
 	            resolvedImportURI = URI.createURI(importURIString);
-//	            System.out.println("VALIDATOR DEBUG: Directly created URI: '" + resolvedImportURI + "' from '" + importURIString + "'");
 	        } catch (IllegalArgumentException e) {
-	            System.err.println("VALIDATOR ERROR: Error creating direct URI from import string: " + importURIString + ". Error: " + e.getMessage());
+	            System.err.println("SCOPING ERROR: Error creating direct URI from import string: " + importURIString + ". Error: " + e.getMessage());
 	        }
 	    }
 	    return resolvedImportURI;
