@@ -18,7 +18,7 @@ Room:
 	'Room' name=ID '{'
 		'size' '=' size=Sizes
 		'type' '=' type=RoomTypes
-		'connections' "=" '[' connections+=ID (',' connections+=ID)* ']'
+		'connections' "=" '[' (connections+=[Room] (',' connections+=[Room])*)? ']' // adds cross-referencing
 		(traps+=Trap)*
 		(npcs+=NPC)*
 	'}'
@@ -52,6 +52,8 @@ Multiplication returns Expression:
 PrimaryExpression returns Expression:
     '(' Expression ')'                // Parentheses for grouping
     | {NumberLiteral} value=INT       // An integer number is the base case
+    | {LevelReference} 'lvl'
+    | {NPCReference} npc=[NPC]        // Reference to another NPC's health   
 ;
 
 enum Behaviour:

@@ -3,6 +3,24 @@
  */
 package org.xtext.scoping;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.eclipse.emf.common.util.EList;
+import org.eclipse.emf.ecore.EObject;
+import org.eclipse.emf.ecore.EReference;
+import org.eclipse.xtext.EcoreUtil2;
+import org.eclipse.xtext.naming.QualifiedName;
+import org.eclipse.xtext.resource.EObjectDescription;
+import org.eclipse.xtext.resource.IEObjectDescription;
+import org.eclipse.xtext.scoping.IScope;
+import org.eclipse.xtext.scoping.impl.SimpleScope;
+import org.xtext.dungeonDSL.Dungeon;
+import org.xtext.dungeonDSL.Floor;
+import org.xtext.dungeonDSL.NPC;
+import org.xtext.dungeonDSL.NPCReference;
+import org.xtext.dungeonDSL.Room;
 
 /**
  * This class contains custom scoping description.
@@ -11,5 +29,78 @@ package org.xtext.scoping;
  * on how and when to use it.
  */
 public class DungeonDSLScopeProvider extends AbstractDungeonDSLScopeProvider {
+
+
+	@Override
+	public IScope getScope(EObject context, EReference reference) {
+		System.out.println("Context: " + context + ", Reference: " + reference.getName());
+		if (context == null || reference == null) {
+			System.out.println("Context or reference is null, returning NULLSCOPE.");
+			return super.getScope(context, reference);
+		}
+		
+        if (context instanceof NPCReference && reference.getName().equals("npc")) {
+            return createNPCScope(context);
+        }
+		
+		if (EcoreUtil2.getContainerOfType(context, Room.class) != null && reference.getName().equals("connections")) {
+			return getRoomsAvailable(context, reference);
+		}
+		
+		return super.getScope(context, reference); // Default behavior if no custom logic is neede
+	}
+	
+    private IScope createNPCScope(EObject context) {
+        // Find the containing Room
+        Room room = EcoreUtil2.getContainerOfType(context, Room.class);
+        
+        if (room != null) {
+            List<IEObjectDescription> descriptions = new ArrayList<>();
+            
+            // Add all NPCs from the current room to the scope
+            for (NPC npc : room.getNpcs()) {
+                descriptions.add(EObjectDescription.create(
+                    QualifiedName.create(npc.getName()), npc));
+            }
+            
+            return new SimpleScope(descriptions);
+        }
+        
+        return IScope.NULLSCOPE;
+    }
+
+
+	private IScope getRoomsAvailable(EObject context, EReference reference) {
+
+		Dungeon dungeon = (Dungeon) EcoreUtil2.getContainerOfType(context, Dungeon.class);
+		Room currentRoom = (Room) EcoreUtil2.getContainerOfType(context, Room.class);
+		
+        List<IEObjectDescription> visibleObjects = new ArrayList<IEObjectDescription>();
+		
+		EList<Floor> floors = dungeon.getFloors();
+	
+		for (Floor floor : floors) {
+			for (Room room : floor.getRooms()) {
+				// Check if the room has a name and is not the current room
+				if (room.getName() != null && currentRoom != room) {
+					System.out.println("Adding room: " + room.getName() + " to scope.");
+					Map<String, String> properties = Map.of("Floor", floor.getName());
+//					System.out.println("Properties for room: " + properties);
+					visibleObjects.add(EObjectDescription.create(QualifiedName.create(room.getName()), room, properties));
+				} else {
+					System.out.println("Room without name found or same room, skipping: " + room);
+				}
+			}
+		}
+		
+		if (visibleObjects.isEmpty()) {
+			System.out.println("No rooms available to connect to.");
+		} else {
+			System.out.println("Found " + visibleObjects.size() + " rooms available to connect to.");
+		}
+		
+		return new SimpleScope(visibleObjects);
+	}
+
 
 }
