@@ -457,17 +457,7 @@ while running:
 
 pygame.quit()
 '''
-//
-//    def generateTrapJson(Trap trap) 
-//        {
-//          "name": "«escape(trap.name)»",
-//          "trigger": "«trap.trigger»",
-//          "disarmable": «trap.disarmable»,
-//          "triggerChance": «trap.triggerChance»
-//        }
-//    '''
-    
-    // Helper method to escape JSON strings
+
  
  	def getConnectedRoomName(Room connectedName, Floor currentFloor, EList<Floor> floors) {
  		

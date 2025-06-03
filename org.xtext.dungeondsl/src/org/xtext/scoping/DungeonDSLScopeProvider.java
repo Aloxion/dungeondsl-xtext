@@ -55,9 +55,8 @@ public class DungeonDSLScopeProvider extends AbstractDungeonDSLScopeProvider {
 		EList<Floor> floors = dungeon.getFloors();
 	
 		for (Floor floor : floors) {
-
-			
 			for (Room room : floor.getRooms()) {
+				// Check if the room has a name and is not the current room
 				if (room.getName() != null && currentRoom != room) {
 					System.out.println("Adding room: " + room.getName() + " to scope.");
 					Map<String, String> properties = Map.of("Floor", floor.getName());
@@ -67,6 +66,12 @@ public class DungeonDSLScopeProvider extends AbstractDungeonDSLScopeProvider {
 					System.out.println("Room without name found or same room, skipping: " + room);
 				}
 			}
+		}
+		
+		if (visibleObjects.isEmpty()) {
+			System.out.println("No rooms available to connect to.");
+		} else {
+			System.out.println("Found " + visibleObjects.size() + " rooms available to connect to.");
 		}
 		
 		return new SimpleScope(visibleObjects);
