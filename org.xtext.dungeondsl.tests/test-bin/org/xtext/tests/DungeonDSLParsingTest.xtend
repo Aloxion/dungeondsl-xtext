@@ -156,45 +156,15 @@ class DungeonDSLParsingTest {
 		}
 	}
 	''')
-
-	  // You might not actually have a validator rule for this yet
-	  // But once you do, use something like:
-	  // assertError(model, DungeonDSLPackage.Literals.ROOM, "CYCLIC_CONNECTION")
-	
-	  // For now, we just assert no errors to test the base case
+		/* 
+		Checks that cyclic room connections (room A <-> B <-> A) dont cause parsing errors.
+		This doesnt validate that cycles arent allowed and only confirms the parser can handle them.
+		We could later extend this with validation logic to detect unwanted cycles.
+		For now, we just assert no errors to test the base case
+		*/
 	  Assertions.assertTrue(model.eResource.errors.empty, "Unexpected errors in the model")
 	  println("Success: Cyclic room connections parsed successfully. \n")
 	}
-	
-
-	/* 
-	@Test
-	def void triggerChanceTooHigh() {
-	  val model = parseHelper.parse('''
-	    Dungeon ProbDungeon {
-	      theme = "Bad Luck"
-	      lvl = 13
-	      Floor Main {
-	        Room Room1 {
-	          size = MEDIUM
-	          type = TREASURE
-	          connections = []
-	          Trap Explode {
-	            trigger = stepOn
-	            disarmable = true
-	            triggerChance = 150
-	          }
-	        }
-	      }
-	    }
-	  ''')
-	
-	  val errors = model.eResource.errors
-  		Assertions.assertFalse(errors.isEmpty, "Expected errors due to triggerChance being out of range")
-  		Assertions.assertTrue(errors.exists[it.message.contains("TRIGGER_CHANCE_OUT_OF_RANGE")], 
-    		"Expected error message for triggerChance out of range")
-	}
-	*/
 	
 	
 
@@ -220,5 +190,97 @@ class DungeonDSLParsingTest {
 	  Assertions.assertEquals(0, room.connections.size)
 	  println("Success: Room name and structure parsed as expected. \n")
 	}
+	
+	
+
+	/* Testing valid cross-reference between rooms: Room A connects to Room B. */
+	@Test
+	def void roomCanReferenceOtherRoom() {
+		println("Testing valid cross-reference between rooms: Room A connects to Room B.")
+		val model = parseHelper.parse('''
+			Dungeon MyDungeon {
+				theme = "Dark"
+				lvl = 5
+				Floor F1 {
+					Room A {
+						size = SMALL
+						type = COMBAT
+						connections = [B]
+					}
+					Room B {
+						size = SMALL
+						type = COMBAT
+						connections = [A]
+					}
+				}
+			}
+		''')
+		Assertions.assertTrue(model.eResource.errors.empty, "Expected no errors for valid cross-referencing.")
+		println("Success: Valid cross-reference between rooms parsed correctly. \n")
+	}
+
+	
+
+	
+
+	/* Testing NPC reference: NPC B uses NPC A's health value within the same room. */
+	@Test
+	def void npcCanReferenceOtherNPCHealth() {
+		println("Testing NPC reference: NPC B uses NPC A's health value within the same room.")
+		val model = parseHelper.parse('''
+			Dungeon RefTest {
+				theme = "Dark"
+				lvl = 1
+				Floor Main {
+					Room R {
+						size = MEDIUM
+						type = COMBAT
+						connections = []
+						NPC A {
+							behaviour = NEUTRAL
+							type = NORMAL
+							health = 10
+						}
+						NPC B {
+							behaviour = NEUTRAL
+							type = NORMAL
+							health = A
+						}
+					}
+				}
+			}
+		''')
+		Assertions.assertTrue(model.eResource.errors.empty, "Expected valid health reference to another NPC.")
+		println("Success: NPC health reference within the same room parsed correctly. \n")
+	}
+
+	
+	
+	/* Testing expression evaluation: NPC health uses arithmetic expression with dungeon level. */
+	@Test
+	def void npcHealthCanUseArithmetic() {
+		println("Testing expression evaluation: NPC health uses arithmetic expression with dungeon level.")
+		val model = parseHelper.parse('''
+			Dungeon MathTest {
+				theme = "Dark"
+				lvl = 10
+				Floor Main {
+					Room Room1 {
+						size = SMALL
+						type = COMBAT
+						connections = []
+						NPC Goblin {
+							behaviour = AGGRESSIVE
+							type = ENEMY
+							health = lvl * 2 + 5
+						}
+					}
+				}
+			}
+		''')
+		Assertions.assertTrue(model.eResource.errors.empty, "Expected valid arithmetic using lvl reference.")
+		println("Success: NPC health arithmetic with lvl parsed correctly. \n")
+	}
+	
 	
 }

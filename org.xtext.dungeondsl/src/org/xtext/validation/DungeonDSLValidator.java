@@ -3,9 +3,13 @@
  */
 package org.xtext.validation;
 
+import org.eclipse.xtext.EcoreUtil2;
 import org.eclipse.xtext.validation.Check;
 import org.xtext.dungeonDSL.Trap;
 import static org.xtext.dungeonDSL.DungeonDSLPackage.Literals;
+import org.xtext.dungeonDSL.NPCReference;
+import org.xtext.dungeonDSL.NPC;
+import org.xtext.dungeonDSL.Room;
 
 /**
  * This class contains custom validation rules. 
@@ -27,6 +31,31 @@ public class DungeonDSLValidator extends AbstractDungeonDSLValidator {
 	        );
 	    }
 	}
+
+	@Check
+	public void checkNPCReferenceIsInSameRoom(NPCReference ref) {
+	    NPC target = ref.getNpc();
+	    if (target == null) return; // Unresolved references are already caught by the framework
+
+	    Room currentRoom = EcoreUtil2.getContainerOfType(ref, Room.class);
+	    if (currentRoom == null) return;
+
+	    if (!currentRoom.getNpcs().contains(target)) {
+	        error(
+	            "NPC " + target.getName() + " is not visible in this room",
+	            Literals.NPC_REFERENCE__NPC
+	        );
+	    }
+	}	
+
+	@Check
+	public void checkRoomDoesNotConnectToSelf(Room room) {
+	    for (Room conn : room.getConnections()) {
+	        if (conn == room) {
+	            error("A room cannot connect to itself", Literals.ROOM__CONNECTIONS);
+	        }
+	    }
+	}	
 	
 //	public static final String INVALID_NAME = "invalidName";
 //
